@@ -1,0 +1,424 @@
+================================================================================
+  DEEPEVAL REFERENCE GUIDE — REVNYX PROJECT
+  Requirements: Prompt Optimization (primary) + Tool Optimization (secondary)
+                CLI test results + Updated prompts saved to a .txt file
+================================================================================
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 1 — GLOSSARY (KEY TERMS EXPLAINED)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GOLDEN
+------
+  A Golden is a pre-defined reference data point — it's like "a question + its
+  correct answer" bundled together. Think of it as your ground truth.
+
+  A Golden typically contains:
+    - input          → the user's question / message
+    - expected_output → the ideal response you WANT your LLM to give
+    - context        → any background information (optional but useful)
+
+  Goldens are STATIC — they don't change. You define them once and reuse them
+  across many test runs. You can write them manually or generate them
+  synthetically using DeepEval's "Golden Synthesizer".
+
+  Example (Python dict representation):
+    {
+      
+      "input": "What is our refund policy?",
+      "expected_output": "We offer a 30-day full refund on all products.",
+      "context": ["Our policy allows returns within 30 days of purchase."]
+    }
+
+
+EVALUATION DATASET
+------------------
+  An EvaluationDataset is simply a collection (list) of Goldens.
+  It's your benchmark — the full set of test scenarios you want to evaluate.
+
+  You can:
+    - Define it in code (a Python list of Golden objects)
+    - Load it from a JSON/CSV file
+    - Pull it from Confident AI (their cloud platform — optional)
+
+  For our project, we'll keep it local in a JSON file.
+
+
+LLMTestCase
+-----------
+  An LLMTestCase is what actually gets EVALUATED. You take a Golden
+  (the static question+expected answer), run it through YOUR live LLM,
+  and record the actual output. That combination becomes an LLMTestCase.
+
+  Fields:
+    - input          → same as Golden's input
+    - actual_output  → what YOUR LLM actually responded at runtime
+    - expected_output → what the ideal response is (from the Golden)
+    - context        → background info (optional)
+    - tools_called   → list of ToolCall objects (for tool evaluation)
+    - expected_tools → list of expected ToolCall objects
+
+  Key distinction:
+    Golden = static data you define
+    LLMTestCase = Golden + your LLM's live response
+
+
+METRIC
+------
+  A Metric is a scoring function that evaluates a specific quality dimension of
+  your LLM's output. Each metric returns a SCORE (0.0 to 1.0) and a REASON.
+
+  A test PASSES if score >= threshold (default 0.5, you set this).
+
+  DeepEval has 50+ built-in metrics. For our project, the relevant ones are:
+
+  FOR PROMPT OPTIMIZATION:
+    - AnswerRelevancyMetric   → Is the response relevant to the question?
+    - FaithfulnessMetric      → Does the response match the provided context?
+    - HallucinationMetric     → Is the LLM making things up?
+    - GEval                   → Custom criteria in plain English (very flexible)
+
+  FOR TOOL OPTIMIZATION:
+    - ToolCorrectnessMetric   → Did the agent call the RIGHT tools?
+    - ArgumentCorrectnessMetric → Did the agent pass the RIGHT arguments?
+    - TaskCompletionMetric    → Did the agent ultimately complete the task?
+
+  Most of these use "LLM-as-a-judge" — meaning another LLM (like GPT-4 or
+  Gemini) is used to score your LLM's output. This is configurable.
+
+
+ASSERT_TEST
+-----------
+  assert_test() is the core evaluation function. You pass it:
+    1. An LLMTestCase
+    2. A list of metrics to evaluate it against
+
+  It checks: does each metric pass the threshold?
+  If any metric fails, the test fails (like a regular assert statement).
+
+  Usage:
+    from deepeval import assert_test
+    assert_test(test_case, [AnswerRelevancyMetric(threshold=0.7)])
+
+
+DEEPEVAL TEST RUN (CLI)
+-----------------------
+  `deepeval test run <filename>.py` is the CLI command to run your tests.
+
+  It is a wrapper around Pytest — so you write your tests in Pytest style
+  (test_ functions), and DeepEval adds:
+    - Metric scoring and reporting
+    - Pass/fail per test case in terminal
+    - A table summary at the end
+
+  You do NOT need to connect to Confident AI (their cloud) to use this locally.
+  Results are shown directly in your terminal.
+
+  Command:
+    deepeval test run test_prompts.py
+
+
+PROMPT OPTIMIZATION (THE CORE FEATURE FOR US)
+---------------------------------------------
+  DeepEval can AUTOMATICALLY improve your system prompts.
+
+  How it works:
+    1. You define a prompt template (with placeholders like {input})
+    2. You provide a dataset of Goldens (inputs + expected outputs)
+    3. You pick a metric (e.g., AnswerRelevancyMetric) as the optimization goal
+    4. DeepEval runs the prompt through your LLM on all Goldens
+    5. It scores each output using your metric
+    6. It uses an algorithm to generate improved prompt candidates
+    7. It repeats until it finds the best-scoring prompt
+
+  Algorithms available:
+    - GEPA     → Gradient-based evaluation prompt algorithm (default, simple)
+    - MIPROv2  → More advanced, multi-iteration optimizer
+
+  Output: the optimized prompt text — which we will SAVE to a .txt file.
+
+
+TOOL CALL / TOOL CORRECTNESS (SECONDARY GOAL)
+--------------------------------------------
+  If your LLM is an agent that calls external tools/functions (like a search
+  API, a database query, etc.), DeepEval can evaluate whether it called the
+  right tool with the right arguments.
+
+  ToolCall object:
+    - name   → tool name (e.g., "WebSearch", "DatabaseLookup")
+    - input  → arguments passed to the tool (a dict)
+    - output → what the tool returned (optional)
+
+  In your LLMTestCase, you provide:
+    - tools_called   → what your agent ACTUALLY called
+    - expected_tools → what it SHOULD have called
+
+  Metrics:
+    - ToolCorrectnessMetric   → scored 0-1 based on tool name/order match
+    - ArgumentCorrectnessMetric → scored 0-1 based on argument correctness
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 2 — DEEPEVAL FEATURES WE NEED (AND DON'T NEED)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✅ WE NEED THESE:
+
+  1. LLMTestCase
+     → The unit of evaluation. We create one for each Golden at runtime.
+
+  2. EvaluationDataset + Goldens
+     → Our benchmark set of inputs and expected outputs.
+     → Stored locally in a JSON file.
+
+  3. Eval Metrics
+     Primary (prompt eval):
+       - AnswerRelevancyMetric
+       - GEval (custom criteria, most flexible)
+       - HallucinationMetric (if hallucination is a concern)
+     Secondary (tool eval):
+       - ToolCorrectnessMetric
+       - ArgumentCorrectnessMetric
+
+  4. assert_test
+     → Used inside Pytest test functions to evaluate test cases.
+
+  5. deepeval test run (CLI)
+     → To run tests from the terminal and see results in CLI.
+
+  6. Prompt Optimization Module
+     → PromptOptimizer class with GEPA or MIPROv2 algorithm.
+     → Takes our dataset and a metric, returns the best prompt.
+     → We SAVE the output prompt to a .txt file.
+
+  ❌ WE DO NOT NEED THESE (for now):
+
+  - Confident AI cloud dashboard (optional integration, we skip it)
+  - RAG metrics (FaithfulnessMetric, ContextualPrecisionMetric) — unless our
+    LLM uses a retrieval system
+  - Safety metrics (BiasMetric, ToxicityMetric) — not required for our use case
+  - Conversation Simulator — for multi-turn chat testing (future use maybe)
+  - Benchmarks module — used for comparing base LLMs, not for our app
+  - Images metrics — not relevant
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 3 — HOW EVERYTHING CONNECTS (THE EXECUTION FLOW)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  STEP 1: DEFINE YOUR GOLDENS
+  ─────────────────────────────
+  Create a JSON file (e.g., goldens.json) with your benchmark data:
+
+    [
+      {
+        "input": "What is our cancellation policy?",
+        "expected_output": "You can cancel within 24 hours for a full refund.",
+        "context": ["Our policy allows same-day cancellations."]
+      },
+      ...more entries...
+    ]
+
+  These are your ground-truth reference points. The more Goldens you have,
+  the better the optimizer can work.
+
+
+  STEP 2: WRITE TEST CASES (test_prompts.py)
+  ──────────────────────────────────────────
+  In a Python file, load your Goldens, call your LLM with the current prompt,
+  and build LLMTestCase objects:
+
+    import pytest
+    from deepeval import assert_test
+    from deepeval.test_case import LLMTestCase
+    from deepeval.metrics import AnswerRelevancyMetric, GEval
+    import json, your_llm_module
+
+    goldens = json.load(open("goldens.json"))
+
+    @pytest.mark.parametrize("golden", goldens)
+    def test_prompt_quality(golden):
+        actual = your_llm_module.call(golden["input"])  # your LLM call
+        test_case = LLMTestCase(
+            input=golden["input"],
+            actual_output=actual,
+            expected_output=golden["expected_output"]
+        )
+        metric = AnswerRelevancyMetric(threshold=0.7)
+        assert_test(test_case, [metric])
+
+
+  STEP 3: RUN TESTS IN CLI
+  ──────────────────────────
+  From your terminal, inside the project directory:
+
+    deepeval test run test_prompts.py
+
+  This will:
+    - Run each test case through the metric
+    - Print a live table in the terminal with pass/fail and scores
+    - Show a summary at the end
+
+
+  STEP 4: RUN PROMPT OPTIMIZATION (optimize_prompt.py)
+  ─────────────────────────────────────────────────────
+  Separately, run the optimizer to get an improved prompt:
+
+    from deepeval.prompt_optimizer import PromptOptimizer  # (module name TBD)
+    from deepeval.metrics import AnswerRelevancyMetric
+    from deepeval.dataset import EvaluationDataset, Golden
+
+    dataset = EvaluationDataset(goldens=[
+        Golden(input=g["input"], expected_output=g["expected_output"])
+        for g in json.load(open("goldens.json"))
+    ])
+
+    optimizer = PromptOptimizer(
+        model="gpt-4o",           # or your model
+        initial_prompt="You are a helpful assistant...",
+        dataset=dataset,
+        metric=AnswerRelevancyMetric(),
+        algorithm="GEPA"          # or "MIPROv2"
+    )
+
+    result = optimizer.optimize()
+    best_prompt = result.best_prompt
+
+    # SAVE the optimized prompt to a txt file
+    with open("optimized_prompts.txt", "a") as f:
+        f.write(f"=== Run: {datetime.now()} ===\n")
+        f.write(f"Score: {result.best_score}\n")
+        f.write(f"Prompt:\n{best_prompt}\n\n")
+
+    print("Optimized prompt saved to optimized_prompts.txt")
+
+
+  STEP 5: FOR TOOL EVALUATION (test_tools.py)
+  ────────────────────────────────────────────
+  If your agent calls tools, add tool evaluation separately:
+
+    from deepeval.test_case import LLMTestCase, ToolCall
+    from deepeval.metrics import ToolCorrectnessMetric
+
+    test_case = LLMTestCase(
+        input="Find me the latest news on AI",
+        actual_output="Here are the latest AI news...",
+        tools_called=[
+            ToolCall(name="WebSearch", input={"query": "latest AI news 2024"})
+        ],
+        expected_tools=[
+            ToolCall(name="WebSearch", input={"query": "latest AI news"})
+        ]
+    )
+
+    metric = ToolCorrectnessMetric(threshold=0.7)
+    assert_test(test_case, [metric])
+
+  Run with: deepeval test run test_tools.py
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 4 — RECOMMENDED PROJECT FILE STRUCTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  revnyx_deep_eval/
+  │
+  ├── goldens.json            ← Your dataset of inputs + expected outputs
+  │
+  ├── test_prompts.py         ← Pytest tests for prompt quality evaluation
+  │                              Run with: deepeval test run test_prompts.py
+  │
+  ├── test_tools.py           ← Pytest tests for tool call evaluation (secondary)
+  │                              Run with: deepeval test run test_tools.py
+  │
+  ├── optimize_prompt.py      ← Script to run prompt optimizer
+  │                              Run with: python optimize_prompt.py
+  │
+  ├── optimized_prompts.txt   ← OUTPUT FILE: all optimized prompts are saved here
+  │                              (appended each run, with timestamp + score)
+  │
+  ├── llm_client.py           ← Your LLM wrapper (calls your actual model)
+  │
+  ├── package.json
+  ├── .gitignore
+  └── DEEPEVAL_REFERENCE.txt  ← This file
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 5 — METRICS CHEAT SHEET (QUICK REFERENCE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  METRIC NAME                  PURPOSE                       TYPE
+  ─────────────────────────────────────────────────────────────────────────────
+  AnswerRelevancyMetric        Is output relevant to input?  LLM-as-judge
+  GEval                        Custom criteria in English     LLM-as-judge
+  HallucinationMetric          Is output making things up?   LLM-as-judge
+  FaithfulnessMetric           Sticks to given context?      LLM-as-judge (RAG)
+  ToolCorrectnessMetric        Right tools called?           Deterministic
+  ArgumentCorrectnessMetric    Right arguments passed?       LLM-as-judge
+  TaskCompletionMetric         Did agent finish the task?    LLM-as-judge
+  ─────────────────────────────────────────────────────────────────────────────
+
+  All metrics:
+    - Are initialized with a threshold (e.g., threshold=0.7)
+    - Return .score (float 0-1) and .reason (string explanation)
+    - Support a model parameter to choose which LLM acts as judge
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 6 — INSTALLATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  DeepEval is a PYTHON library. Your project will use Python for the eval
+  scripts, even though the repo has a package.json (for any Node.js tooling).
+
+  Install:
+    pip install deepeval
+
+  Set your LLM API key (for the judge model):
+    export OPENAI_API_KEY="your-key"    # if using OpenAI as judge
+    # or set GOOGLE_API_KEY for Gemini, etc.
+
+  Verify install:
+    deepeval --version
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 7 — IMPORTANT NOTES & GOTCHAS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. PYTHON NOT NODE.JS
+     DeepEval is a Python library. The Node.js setup in this repo is for
+     any supporting tooling, but all DeepEval scripts (.py files) run in Python.
+
+  2. LLM-AS-JUDGE COSTS MONEY
+     Every metric evaluation that uses LLM-as-judge makes API calls to an LLM
+     (GPT-4, Gemini, etc.). With large datasets, this can get expensive.
+     Start with small datasets (5–20 Goldens) while developing.
+
+  3. OPTIMIZED PROMPTS FILE
+     The optimized_prompts.txt file will be APPENDED each run (not overwritten).
+     This lets you track the history of prompt improvements over time.
+     Each entry should have: timestamp, score, and the full prompt text.
+
+  4. PROMPT OPTIMIZATION = MANY LLM CALLS
+     The optimizer runs your full dataset multiple times per iteration.
+     With 20 Goldens and 5 iterations = 100+ LLM API calls minimum.
+     Budget accordingly.
+
+  5. TOOL EVAL REQUIRES LOGGING TOOL CALLS
+     To evaluate tool correctness, your agent must log which tools it called
+     during a run. You'll need to capture this from your agent's execution.
+
+  6. CONFIDENT AI IS OPTIONAL
+     DeepEval offers Confident AI (their cloud dashboard) for storing results
+     and datasets. We are NOT using this — all results stay local in CLI.
+
+  7. DEEPEVAL 4.0 (LATEST)
+     The current version is DeepEval 4.0. Some older tutorials may use
+     deprecated APIs. Always refer to https://deepeval.com/docs for current API.
+
+================================================================================
+  END OF REFERENCE GUIDE
+================================================================================
