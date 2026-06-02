@@ -86,9 +86,7 @@ _total_goldens = len(goldens)
 def model_callback(prompt: Prompt, golden: Golden) -> str:
     global _call_count
     _call_count += 1
-    iteration = (_call_count - 1) // _total_goldens + 1
-    golden_idx = (_call_count - 1) % _total_goldens + 1
-    print(f"[Iter {iteration}] Golden {golden_idx}/{_total_goldens}: {golden.input[:50]}...")
+    print(f"[Call {_call_count}] {golden.input[:60]}...")
     sys.stdout.flush()
     system_text = prompt.text_template or ""
     result = llm_client.call(golden.input, system_prompt=system_text if system_text else None)
