@@ -1,27 +1,10 @@
 [
   {
-    "input": "What is our refund policy?",
-    "expected_output": "We offer a 30-day full refund on all products. No questions asked.",
-    "context": ["Our policy allows returns within 30 days of purchase for a full refund."]
-  },
-  {
-    "input": "How do I cancel my subscription?",
-    "expected_output": "You can cancel your subscription anytime from your account settings. Go to Settings > Subscription > Cancel.",
-    "context": ["Users can cancel subscriptions through their account settings page under the Subscription section."]
-  },
-  {
-    "input": "What payment methods do you accept?",
-    "expected_output": "We accept Visa, Mastercard, American Express, and PayPal.",
-    "context": ["Accepted payment methods include Visa, Mastercard, American Express, and PayPal."]
-  },
-  {
-    "input": "How long does shipping take?",
-    "expected_output": "Standard shipping takes 5-7 business days. Express shipping takes 2-3 business days.",
-    "context": ["Standard delivery is 5-7 business days. Express delivery is 2-3 business days."]
-  },
-  {
-    "input": "Can I change my email address?",
-    "expected_output": "Yes, you can change your email address in your profile settings under Account > Email.",
-    "context": ["Users can update their email from the Account section in profile settings."]
+    "input": "Explain the concept of Redis persistence and relate it to saving work in a word processor.",
+    "expected_output": "Redis persistence is similar to the 'autosave' feature in a word processor, where your work is saved automatically at intervals to avoid data loss. When you are writing a document, you want to ensure that even if the power goes out, your latest changes are not lost. Redis offers two main ways to persist data: RDB (snapshotting) and AOF (append-only file). RDB is like saving your document every few minutes, creating a snapshot of your work at that moment. AOF, on the other hand, is like saving every keystroke, ensuring that every change you make is recorded. This means that if Redis were to crash, you could recover your data to its last saved state, just like reopening your word processor to find your latest unsaved work restored.",
+    "context": [
+      "Redis can persist data in different ways, allowing for recovery in case of failure.",
+      "Autosave features in applications are designed to prevent data loss during unexpected events."
+    ]
   }
 ]
