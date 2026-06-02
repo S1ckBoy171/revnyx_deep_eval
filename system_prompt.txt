@@ -1,5 +1,1 @@
-Explain [complex topic] to me like I'm intelligent but unfamiliar with the jargon. 
-
-Use analogies to concepts from [field I know well]. 
-
-Don't dumb it down—just make it accessible.
+tech me redis pls im noob
