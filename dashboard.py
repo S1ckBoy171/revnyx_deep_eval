@@ -7,6 +7,8 @@ Then open: http://localhost:8050
 import json
 import os
 import subprocess
+import threading
+import time as _time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -18,214 +20,316 @@ RESULTS_FILE = "results.json"
 GOLDENS_FILE = "goldens.json"
 TOOL_GOLDENS_FILE = "tool_goldens.json"
 
+_run_state = {"running": False, "log": "", "done": False, "success": False, "message": ""}
+
 HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Revnyx DeepEval Dashboard</title>
+<title>Revnyx DeepEval</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+:root {
+  --bg-deep: #09090b;
+  --bg-surface: #111113;
+  --bg-elevated: #18181b;
+  --bg-hover: #1f1f23;
+  --border: #27272a;
+  --border-subtle: #1e1e21;
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --accent: #d4af37;
+  --accent-dim: rgba(212,175,55,0.15);
+  --success: #22c55e;
+  --success-dim: rgba(34,197,94,0.12);
+  --error: #ef4444;
+  --error-dim: rgba(239,68,68,0.12);
+  --blue: #3b82f6;
+  --blue-dim: rgba(59,130,246,0.12);
+  --purple: #a855f7;
+  --purple-dim: rgba(168,85,247,0.12);
+  --radius: 8px;
+  --font: 'Outfit', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1117; color: #e1e4e8; padding: 24px; }
-h1 { font-size: 24px; margin-bottom: 8px; color: #fff; }
-.subtitle { color: #8b949e; margin-bottom: 24px; font-size: 14px; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--font); background: var(--bg-deep); color: var(--text-primary); min-height: 100vh; line-height: 1.5; }
 
-/* Control Panel */
-.control-panel { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 24px; margin-bottom: 20px; }
-.control-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #fff; }
-.prompt-input { width: 100%; min-height: 100px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px 16px; font-family: 'SF Mono', Menlo, monospace; font-size: 13px; color: #e1e4e8; resize: vertical; line-height: 1.5; }
-.prompt-input:focus { outline: none; border-color: #58a6ff; }
-.btn-row { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
-.btn { padding: 10px 20px; border-radius: 6px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-test { background: #238636; color: #fff; }
-.btn-test:hover:not(:disabled) { background: #2ea043; }
-.btn-tools { background: #1f6feb; color: #fff; }
-.btn-tools:hover:not(:disabled) { background: #388bfd; }
-.btn-optimize { background: #8957e5; color: #fff; }
-.btn-optimize:hover:not(:disabled) { background: #a371f7; }
-.status-bar { margin-top: 12px; padding: 10px 14px; border-radius: 6px; font-size: 13px; display: none; }
-.status-bar.status-running { display: block; background: #1c2128; border: 1px solid #30363d; color: #8b949e; }
-.status-bar.status-done { display: block; background: #1b4332; border: 1px solid #2d6a4f; color: #6ee7b7; }
-.status-bar.status-error { display: block; background: #4c1d1d; border: 1px solid #7f1d1d; color: #fca5a5; }
-.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+/* Layout */
+.container { max-width: 1100px; margin: 0 auto; padding: 48px 32px; }
+
+/* Header */
+.header { display: flex; align-items: center; gap: 16px; margin-bottom: 48px; }
+.header img { width: 44px; height: 44px; border-radius: 10px; }
+.header-text h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+.header-text p { font-size: 13px; color: var(--text-muted); font-weight: 300; letter-spacing: 0.2px; }
+
+/* Cards */
+.card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 28px; margin-bottom: 24px; transition: border-color 0.2s; }
+.card:hover { border-color: var(--border); }
+.card-title { font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); margin-bottom: 16px; }
+
+/* Prompt Input */
+.prompt-area { width: 100%; min-height: 120px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; font-family: var(--mono); font-size: 13px; color: var(--text-primary); resize: vertical; line-height: 1.7; transition: border-color 0.2s; }
+.prompt-area:focus { outline: none; border-color: var(--accent); }
+
+/* Buttons */
+.btn-group { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+.btn { padding: 10px 22px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-primary); font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; letter-spacing: 0.2px; }
+.btn:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--text-muted); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-accent { border-color: var(--accent); color: var(--accent); }
+.btn-accent:hover:not(:disabled) { background: var(--accent-dim); }
+.btn-success { border-color: var(--success); color: var(--success); }
+.btn-success:hover:not(:disabled) { background: var(--success-dim); }
+.btn-blue { border-color: var(--blue); color: var(--blue); }
+.btn-blue:hover:not(:disabled) { background: var(--blue-dim); }
+.btn-purple { border-color: var(--purple); color: var(--purple); }
+.btn-purple:hover:not(:disabled) { background: var(--purple-dim); }
+.btn-sm { padding: 7px 14px; font-size: 12px; }
+.btn-gold { background: var(--accent); color: var(--bg-deep); border-color: var(--accent); font-weight: 600; }
+.btn-gold:hover:not(:disabled) { background: #e6c84a; }
+
+/* Status */
+.status { margin-top: 16px; padding: 12px 16px; border-radius: var(--radius); font-size: 13px; display: none; align-items: center; gap: 10px; font-family: var(--mono); }
+.status.visible { display: flex; }
+.status-running { background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary); }
+.status-done { background: var(--success-dim); border: 1px solid rgba(34,197,94,0.25); color: var(--success); }
+.status-error { background: var(--error-dim); border: 1px solid rgba(239,68,68,0.25); color: var(--error); }
+.spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.disabled-notice { color: #f59e0b; font-size: 12px; margin-top: 8px; display: none; }
+.disabled-msg { font-size: 12px; color: var(--accent); margin-top: 10px; display: none; font-weight: 400; }
 
-/* Goldens Panel */
-.goldens-panel { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 24px; margin-bottom: 32px; }
-.goldens-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.goldens-title { font-size: 16px; font-weight: 600; color: #fff; }
-.goldens-count { font-size: 13px; color: #8b949e; margin-left: 8px; }
-.goldens-actions { display: flex; gap: 8px; }
-.btn-sm { padding: 6px 14px; border-radius: 6px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-.btn-add { background: #238636; color: #fff; }
-.btn-add:hover { background: #2ea043; }
-.btn-ai { background: #da7821; color: #fff; display: flex; align-items: center; gap: 6px; position: relative; }
-.btn-ai:hover { background: #e8923b; }
-.ai-icon { width: 16px; height: 16px; filter: invert(1); }
-.btn-ai-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-.btn-ai-desc { font-size: 11px; color: #8b949e; }
-.golden-item { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 16px; margin-bottom: 12px; position: relative; }
-.golden-item.ai-generated { border-color: #da7821; }
-.golden-remove { position: absolute; top: 10px; right: 10px; background: #4c1d1d; border: none; color: #fca5a5; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
-.golden-remove:hover { background: #7f1d1d; }
-.golden-field { margin-bottom: 10px; }
+/* Log Output */
+.log-box { margin-top: 14px; background: var(--bg-deep); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 16px; font-family: var(--mono); font-size: 11.5px; color: var(--text-muted); white-space: pre-wrap; word-break: break-word; max-height: 280px; overflow-y: auto; display: none; line-height: 1.8; }
+.log-box.visible { display: block; }
+.log-box::-webkit-scrollbar { width: 6px; }
+.log-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Goldens */
+.goldens-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.goldens-header-left { display: flex; align-items: baseline; gap: 8px; }
+.goldens-count { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+.golden-item { background: var(--bg-deep); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 18px; margin-bottom: 12px; position: relative; transition: border-color 0.2s; }
+.golden-item:hover { border-color: var(--border); }
+.golden-item.ai-generated { border-color: var(--accent); border-style: dashed; }
+.golden-remove { position: absolute; top: 12px; right: 12px; background: none; border: 1px solid var(--border); color: var(--text-muted); width: 22px; height: 22px; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.golden-remove:hover { border-color: var(--error); color: var(--error); }
+.golden-field { margin-bottom: 12px; }
 .golden-field:last-child { margin-bottom: 0; }
-.golden-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 4px; }
-.golden-input { width: 100%; background: #161b22; border: 1px solid #30363d; border-radius: 4px; padding: 8px 12px; font-size: 13px; color: #e1e4e8; font-family: inherit; }
-.golden-input:focus { outline: none; border-color: #58a6ff; }
-.golden-textarea { width: 100%; background: #161b22; border: 1px solid #30363d; border-radius: 4px; padding: 8px 12px; font-size: 13px; color: #e1e4e8; font-family: inherit; min-height: 50px; resize: vertical; }
-.golden-textarea:focus { outline: none; border-color: #58a6ff; }
-.goldens-empty { color: #6b7280; text-align: center; padding: 30px; font-size: 14px; }
+.golden-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500; }
+.golden-input { width: 100%; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 10px 14px; font-size: 13px; color: var(--text-primary); font-family: var(--font); transition: border-color 0.2s; }
+.golden-input:focus { outline: none; border-color: var(--accent); }
+.golden-textarea { width: 100%; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 10px 14px; font-size: 13px; color: var(--text-primary); font-family: var(--mono); min-height: 60px; resize: vertical; line-height: 1.6; transition: border-color 0.2s; }
+.golden-textarea:focus { outline: none; border-color: var(--accent); }
+.goldens-empty { color: var(--text-muted); text-align: center; padding: 36px; font-size: 13px; }
 
-/* AI Generation Section */
-.ai-section { background: #1c1917; border: 1px solid #da7821; border-radius: 8px; padding: 16px; margin-bottom: 16px; display: none; }
+/* AI Section */
+.ai-section { background: var(--bg-deep); border: 1px dashed var(--accent); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; display: none; }
 .ai-section.visible { display: block; }
-.ai-label { font-size: 13px; color: #fbbf24; margin-bottom: 8px; font-weight: 600; }
-.ai-textarea { width: 100%; min-height: 80px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #e1e4e8; resize: vertical; font-family: inherit; }
-.ai-textarea:focus { outline: none; border-color: #da7821; }
-.ai-row { display: flex; gap: 12px; margin-top: 12px; align-items: center; }
-.ai-count-label { font-size: 13px; color: #8b949e; }
-.ai-count-input { width: 60px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; padding: 6px 10px; font-size: 13px; color: #e1e4e8; text-align: center; }
-.ai-count-input:focus { outline: none; border-color: #da7821; }
-.btn-generate { background: #da7821; color: #fff; padding: 8px 18px; border-radius: 6px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
-.btn-generate:hover { background: #e8923b; }
-.btn-generate:disabled { opacity: 0.5; cursor: not-allowed; }
-.ai-cancel { background: transparent; border: 1px solid #30363d; color: #8b949e; padding: 8px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; }
-.ai-cancel:hover { border-color: #8b949e; color: #e1e4e8; }
-.ai-status { margin-top: 12px; padding: 12px 16px; border-radius: 6px; background: #1c2128; border: 1px solid #da7821; font-size: 13px; color: #fbbf24; display: none; align-items: center; }
+.ai-label { font-size: 12px; color: var(--accent); margin-bottom: 8px; font-weight: 500; letter-spacing: 0.3px; }
+.ai-row { display: flex; gap: 12px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
+.ai-count-input { width: 56px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 13px; color: var(--text-primary); text-align: center; font-family: var(--mono); }
+.ai-count-input:focus { outline: none; border-color: var(--accent); }
+.ai-status { margin-top: 10px; font-size: 12px; color: var(--text-muted); display: none; align-items: center; gap: 8px; }
 .ai-status.visible { display: flex; }
-.btn-save-goldens { background: #238636; color: #fff; padding: 10px 20px; border-radius: 6px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px; }
-.btn-save-goldens:hover { background: #2ea043; }
+
+/* Field Wrap + Expand */
+.field-wrap { position: relative; }
+.expand-btn { position: absolute; top: 8px; right: 8px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-muted); width: 22px; height: 22px; border-radius: 4px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: all 0.15s; z-index: 2; }
+.field-wrap:hover .expand-btn { opacity: 1; }
+.expand-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* Divider */
-.divider { border: none; border-top: 1px solid #21262d; margin: 32px 0 24px; }
-.section-header { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #fff; }
+.divider { border: none; border-top: 1px solid var(--border-subtle); margin: 40px 0 32px; }
 
-/* Run Rows */
-.empty { color: #6b7280; text-align: center; padding: 60px; font-size: 16px; }
-.run-row { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 12px; overflow: hidden; transition: border-color 0.2s; }
-.run-row:hover { border-color: #58a6ff; }
-.run-header { display: flex; align-items: center; padding: 16px 20px; cursor: pointer; gap: 16px; }
-.run-header .arrow { transition: transform 0.2s; color: #6b7280; font-size: 12px; }
+/* Section Header */
+.section-label { font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); margin-bottom: 20px; }
+
+/* Run History */
+.empty-state { color: var(--text-muted); text-align: center; padding: 60px 20px; font-size: 14px; border: 1px dashed var(--border); border-radius: var(--radius); }
+.run-row { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 10px; margin-bottom: 10px; overflow: hidden; transition: all 0.2s; }
+.run-row:hover { border-color: var(--border); }
+.run-header { display: flex; align-items: center; padding: 16px 22px; cursor: pointer; gap: 14px; }
+.run-header .arrow { color: var(--text-muted); font-size: 10px; transition: transform 0.2s; }
 .run-row.open .arrow { transform: rotate(90deg); }
-.run-name { flex: 1; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.run-date { color: #8b949e; font-size: 13px; white-space: nowrap; }
-.run-duration { font-size: 12px; color: #58a6ff; font-family: monospace; background: #0d1117; padding: 2px 8px; border-radius: 4px; }
-.run-badge { font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
-.badge-pass { background: #1b4332; color: #6ee7b7; }
-.badge-fail { background: #4c1d1d; color: #fca5a5; }
-.badge-opt { background: #1e3a5f; color: #93c5fd; }
-.badge-tools { background: #3b1f63; color: #c4b5fd; }
-.run-details { display: none; padding: 0 20px 20px; border-top: 1px solid #30363d; }
+.run-name { flex: 1; font-size: 14px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary); }
+.run-date { color: var(--text-muted); font-size: 12px; font-family: var(--mono); }
+.run-duration { font-size: 11px; color: var(--accent); font-family: var(--mono); background: var(--accent-dim); padding: 2px 8px; border-radius: 4px; }
+.badge { font-size: 10px; padding: 3px 10px; border-radius: 20px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; }
+.badge-pass { background: var(--success-dim); color: var(--success); }
+.badge-fail { background: var(--error-dim); color: var(--error); }
+.badge-opt { background: var(--purple-dim); color: var(--purple); }
+.badge-tools { background: var(--blue-dim); color: var(--blue); }
+.run-details { display: none; padding: 0 22px 22px; border-top: 1px solid var(--border-subtle); }
 .run-row.open .run-details { display: block; }
-.section { margin-top: 16px; }
-.section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 8px; }
-.prompt-box { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px 16px; font-family: 'SF Mono', Menlo, monospace; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; }
-.test-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.test-table th { text-align: left; padding: 8px 12px; background: #0d1117; color: #8b949e; font-weight: 500; border-bottom: 1px solid #30363d; }
-.test-table td { padding: 8px 12px; border-bottom: 1px solid #21262d; }
-.test-table tr:last-child td { border-bottom: none; }
-.score { font-weight: 600; font-family: monospace; }
-.score-pass { color: #6ee7b7; }
-.score-fail { color: #fca5a5; }
-.reason-text { color: #8b949e; font-size: 12px; margin-top: 4px; }
-.improvement { background: #1c1917; border-left: 3px solid #f59e0b; padding: 8px 12px; margin-top: 8px; border-radius: 0 4px 4px 0; font-size: 12px; color: #fbbf24; }
-.tab-row { display: flex; gap: 0; margin-bottom: 12px; border-bottom: 1px solid #30363d; }
-.tab { padding: 8px 16px; font-size: 13px; cursor: pointer; color: #8b949e; border-bottom: 2px solid transparent; transition: all 0.2s; }
-.tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+
+/* Summary Bar */
+.summary-bar { display: flex; gap: 20px; padding: 14px 18px; background: var(--bg-deep); border: 1px solid var(--border-subtle); border-radius: var(--radius); margin-top: 18px; flex-wrap: wrap; align-items: center; }
+.summary-item { font-size: 12px; font-weight: 500; font-family: var(--mono); }
+.summary-pass { color: var(--success); }
+.summary-fail { color: var(--error); }
+.summary-total { color: var(--text-muted); }
+.summary-score { color: var(--accent); }
+.summary-time { color: var(--text-muted); }
+
+/* Detail Sections */
+.detail-section { margin-top: 18px; }
+.detail-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 8px; font-weight: 500; }
+.prompt-box { background: var(--bg-deep); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 14px 18px; font-family: var(--mono); font-size: 12px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; max-height: 180px; overflow-y: auto; color: var(--text-secondary); }
+
+/* Test Table */
+.test-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.test-table th { text-align: left; padding: 10px 14px; background: var(--bg-deep); color: var(--text-muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.test-table td { padding: 10px 14px; border-top: 1px solid var(--border-subtle); }
+.score { font-weight: 600; font-family: var(--mono); }
+.score-pass { color: var(--success); }
+.score-fail { color: var(--error); }
+.reason-text { color: var(--text-muted); font-size: 11px; padding: 4px 14px 10px; font-style: italic; }
+.improvement { background: var(--bg-deep); border-left: 2px solid var(--accent); padding: 10px 14px; margin-top: 8px; border-radius: 0 6px 6px 0; font-size: 12px; color: var(--text-secondary); }
+.improvement strong { color: var(--accent); }
+
+/* Tabs */
+.tab-row { display: flex; gap: 0; margin-top: 14px; border-bottom: 1px solid var(--border-subtle); }
+.tab { padding: 10px 18px; font-size: 12px; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; transition: all 0.15s; font-weight: 500; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 40px; backdrop-filter: blur(4px); }
+.modal-overlay.visible { display: flex; }
+.modal-box { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 860px; height: 75vh; display: flex; flex-direction: column; overflow: hidden; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--border-subtle); }
+.modal-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.modal-close { background: none; border: 1px solid var(--border); color: var(--text-muted); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.modal-close:hover { border-color: var(--error); color: var(--error); }
+.modal-body { flex: 1; padding: 24px; overflow-y: auto; }
+.modal-textarea { width: 100%; height: 100%; min-height: 100%; background: var(--bg-deep); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; font-family: var(--mono); font-size: 14px; color: var(--text-primary); resize: none; line-height: 1.8; }
+.modal-textarea:focus { outline: none; border-color: var(--accent); }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--border-subtle); }
 </style>
 </head>
 <body>
-<h1>Revnyx DeepEval Dashboard</h1>
-<p class="subtitle">Evaluate and optimize your LLM prompts</p>
+<div class="container">
 
-<!-- Control Panel -->
-<div class="control-panel">
-  <div class="control-title">System Prompt</div>
-  <textarea class="prompt-input" id="promptInput" placeholder="Paste your system prompt here... (leave empty to send only user input from goldens)"></textarea>
-  <div class="btn-row">
-    <button class="btn btn-test" id="btnTest" onclick="runAction('test_prompts')" disabled>Test Prompt</button>
-    <button class="btn btn-tools" id="btnTools" onclick="runAction('test_tools')" disabled>Test Tools</button>
-    <button class="btn btn-optimize" id="btnOptimize" onclick="runAction('optimize')" disabled>Optimize Prompt</button>
+<!-- Header -->
+<div class="header">
+  <img src="/logo.png" alt="Revnyx">
+  <div class="header-text">
+    <h1>Revnyx DeepEval</h1>
+    <p>Prompt evaluation & optimization</p>
   </div>
-  <div class="disabled-notice" id="disabledNotice">Add at least one golden below to enable evaluation.</div>
-  <div class="status-bar" id="statusBar"></div>
 </div>
 
-<!-- Goldens Panel -->
-<div class="goldens-panel">
+<!-- System Prompt -->
+<div class="card">
+  <div class="card-title">System Prompt</div>
+  <div class="field-wrap">
+    <textarea class="prompt-area" id="promptInput" placeholder="Enter your system prompt here..."></textarea>
+    <button class="expand-btn" onclick="openModal(document.getElementById('promptInput'))">&#x26F6;</button>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-success" id="btnTest" onclick="runAction('test_prompts')" disabled>Test Prompt</button>
+    <button class="btn btn-blue" id="btnTools" onclick="runAction('test_tools')" disabled>Test Tools</button>
+    <button class="btn btn-purple" id="btnOptimize" onclick="runAction('optimize')" disabled>Optimize</button>
+    <button class="btn btn-sm" onclick="document.getElementById('optSettings').classList.toggle('visible')" style="margin-left:auto;opacity:0.7;">&#9881; Settings</button>
+  </div>
+  <div class="ai-section" id="optSettings">
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;">
+      <div><div class="golden-label">Algorithm</div>
+        <select class="golden-input" id="optAlgo" style="width:140px;cursor:pointer;">
+          <option value="GEPA">GEPA</option>
+          <option value="MIPROv2">MIPROv2</option>
+          <option value="COPRO">COPRO</option>
+          <option value="SIMBA">SIMBA</option>
+        </select></div>
+      <div><div class="golden-label">Iterations</div>
+        <input type="number" class="ai-count-input" id="optIter" value="5" min="1" max="20"></div>
+      <div><div class="golden-label">Metric</div>
+        <select class="golden-input" id="optMetric" style="width:160px;cursor:pointer;">
+          <option value="AnswerRelevancy">Answer Relevancy</option>
+          <option value="Hallucination">Hallucination</option>
+          <option value="Helpfulness">Helpfulness (GEval)</option>
+        </select></div>
+      <div><div class="golden-label">Threshold</div>
+        <input type="number" class="ai-count-input" id="optThreshold" value="0.7" min="0" max="1" step="0.1"></div>
+      <button class="btn btn-sm btn-gold" onclick="saveOptConfig()">Save</button>
+    </div>
+  </div>
+  <div class="disabled-msg" id="disabledNotice">Add at least one golden to enable evaluation.</div>
+  <div class="status" id="statusBar"></div>
+  <div class="log-box" id="logOutput"></div>
+</div>
+
+<!-- Goldens -->
+<div class="card">
   <div class="goldens-header">
-    <div style="display:flex;align-items:center;">
-      <span class="goldens-title">Goldens (Test Cases)</span>
+    <div class="goldens-header-left">
+      <div class="card-title" style="margin:0;">Goldens</div>
       <span class="goldens-count" id="goldensCount">(0)</span>
     </div>
-    <div class="goldens-actions">
-      <div class="btn-ai-wrap">
-        <button class="btn-sm btn-ai" onclick="toggleAiSection()"><img src="https://img.icons8.com/?size=100&id=rYb1JFR9WLSh&format=png&color=000000" class="ai-icon">Goldens</button>
-        <span class="btn-ai-desc">Generate goldens with AI</span>
-      </div>
-      <button class="btn-sm btn-add" onclick="addGolden()">+ Add</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-sm btn-accent" onclick="toggleAiSection()"><img src="https://img.icons8.com/?size=100&id=rYb1JFR9WLSh&format=png&color=000000" style="width:14px;height:14px;filter:invert(1);vertical-align:middle;margin-right:4px;">Generate</button>
+      <button class="btn btn-sm" onclick="addGolden()">+ Add</button>
     </div>
   </div>
 
-  <!-- AI Generation Section -->
   <div class="ai-section" id="aiSection">
-    <div class="ai-label">What should the goldens test? (required)</div>
-    <textarea class="ai-textarea" id="aiDescription" placeholder="e.g. Customer support questions about refunds, shipping, account management, billing issues..."></textarea>
+    <div class="ai-label">What should the goldens test?</div>
+    <textarea class="golden-textarea" id="aiDescription" placeholder="e.g. Customer support questions about refunds, shipping, billing..."></textarea>
     <div class="ai-row">
-      <span class="ai-count-label">Number of goldens:</span>
+      <span style="font-size:12px;color:var(--text-muted);">Count:</span>
       <input type="number" class="ai-count-input" id="aiCount" value="5" min="1" max="20">
-      <button class="btn-generate" id="btnGenerate" onclick="generateGoldens()">Generate</button>
-      <button class="ai-cancel" onclick="toggleAiSection()">Cancel</button>
+      <button class="btn btn-sm btn-gold" id="btnGenerate" onclick="generateGoldens()">Generate</button>
+      <button class="btn btn-sm" onclick="toggleAiSection()">Cancel</button>
     </div>
-    <div class="ai-status" id="aiStatus"><span class="spinner"></span>Generating goldens with AI...</div>
+    <div class="ai-status" id="aiStatus"><span class="spinner"></span>Generating...</div>
   </div>
 
   <div id="goldensContainer"></div>
-  <div class="goldens-empty" id="goldensEmpty">No goldens yet. Click "+ Add" to create manually or "Generate with AI" to auto-create.</div>
-  <button class="btn-save-goldens" id="btnSaveGoldens" onclick="saveGoldens()" style="display:none;">Save Goldens</button>
+  <div class="goldens-empty" id="goldensEmpty">No goldens yet. Add manually or generate with AI.</div>
+  <button class="btn btn-sm btn-gold" id="btnSaveGoldens" onclick="saveGoldens()" style="display:none;margin-top:12px;">Save Goldens</button>
 </div>
 
-<!-- Tool Goldens Panel -->
-<div class="goldens-panel">
+<!-- Tool Goldens -->
+<div class="card">
   <div class="goldens-header">
-    <div style="display:flex;align-items:center;">
-      <span class="goldens-title">Tool Test Cases</span>
+    <div class="goldens-header-left">
+      <div class="card-title" style="margin:0;">Tool Test Cases</div>
       <span class="goldens-count" id="toolGoldensCount">(0)</span>
     </div>
-    <div class="goldens-actions">
-      <button class="btn-sm btn-add" onclick="addToolGolden()">+ Add</button>
-    </div>
+    <div><button class="btn btn-sm" onclick="addToolGolden()">+ Add</button></div>
   </div>
   <div id="toolGoldensContainer"></div>
-  <div class="goldens-empty" id="toolGoldensEmpty">No tool test cases yet. Click "+ Add" to define tool call expectations.</div>
-  <button class="btn-save-goldens" id="btnSaveToolGoldens" onclick="saveToolGoldens()" style="display:none;">Save Tool Tests</button>
+  <div class="goldens-empty" id="toolGoldensEmpty">No tool test cases yet.</div>
+  <button class="btn btn-sm btn-gold" id="btnSaveToolGoldens" onclick="saveToolGoldens()" style="display:none;margin-top:12px;">Save Tool Tests</button>
 </div>
 
 <hr class="divider">
-<div class="section-header">Run History</div>
+<div class="section-label">Run History</div>
 <div id="app"></div>
+
+</div>
 
 <script>
 let goldens = [];
 let toolGoldens = [];
 let running = false;
 
-// Load initial goldens
-fetch('/api/goldens')
-  .then(r => r.json())
-  .then(data => { goldens = data; renderGoldens(); })
-  .catch(() => renderGoldens());
-
-// Load initial tool goldens
-fetch('/api/tool_goldens')
-  .then(r => r.json())
-  .then(data => { toolGoldens = data; renderToolGoldens(); })
-  .catch(() => renderToolGoldens());
+fetch('/api/goldens').then(r => r.json()).then(data => { goldens = data; renderGoldens(); }).catch(() => renderGoldens());
+fetch('/api/tool_goldens').then(r => r.json()).then(data => { toolGoldens = data; renderToolGoldens(); }).catch(() => renderToolGoldens());
+fetch('/api/optimizer_config').then(r => r.json()).then(data => {
+  document.getElementById('optAlgo').value = data.algorithm || 'GEPA';
+  document.getElementById('optIter').value = data.iterations || 5;
+  document.getElementById('optMetric').value = data.metric || 'AnswerRelevancy';
+  document.getElementById('optThreshold').value = data.threshold || 0.7;
+}).catch(() => {});
 
 function updateButtonState() {
   const hasGoldens = goldens.length > 0;
@@ -239,122 +343,75 @@ function updateButtonState() {
 function renderGoldens() {
   const container = document.getElementById('goldensContainer');
   const empty = document.getElementById('goldensEmpty');
-  const count = document.getElementById('goldensCount');
-  count.textContent = '(' + goldens.length + ')';
-
-  if (!goldens.length) {
-    container.innerHTML = '';
-    empty.style.display = 'block';
-    document.getElementById('btnSaveGoldens').style.display = 'none';
-    updateButtonState();
-    return;
-  }
-
+  document.getElementById('goldensCount').textContent = '(' + goldens.length + ')';
+  if (!goldens.length) { container.innerHTML = ''; empty.style.display = 'block'; document.getElementById('btnSaveGoldens').style.display = 'none'; updateButtonState(); return; }
   empty.style.display = 'none';
-  document.getElementById('btnSaveGoldens').style.display = 'block';
-
+  document.getElementById('btnSaveGoldens').style.display = 'inline-block';
   container.innerHTML = goldens.map((g, i) => {
     const cls = g._aiGenerated ? ' ai-generated' : '';
-    return `<div class="golden-item${cls}" data-index="${i}">
+    return `<div class="golden-item${cls}">
       <button class="golden-remove" onclick="removeGolden(${i})">&times;</button>
-      <div class="golden-field"><div class="golden-label">Input (User Question)</div>
-      <input class="golden-input" value="${escAttr(g.input || '')}" onchange="updateGolden(${i},'input',this.value)" placeholder="e.g. What is your refund policy?"></div>
-      <div class="golden-field"><div class="golden-label">Expected Output (Ideal Answer)</div>
-      <textarea class="golden-textarea" onchange="updateGolden(${i},'expected_output',this.value)" placeholder="e.g. We offer a 30-day full refund on all products.">${escHtml(g.expected_output || '')}</textarea></div>
-      <div class="golden-field"><div class="golden-label">Context (Optional)</div>
-      <textarea class="golden-textarea" onchange="updateGolden(${i},'context',this.value)" placeholder="Background info the LLM should stick to...">${escHtml((g.context || []).join('\\n'))}</textarea></div>
-      </div>`;
+      <div class="golden-field"><div class="golden-label">Input</div>
+      <div class="field-wrap"><input class="golden-input" value="${escAttr(g.input || '')}" onchange="updateGolden(${i},'input',this.value)" placeholder="User question..."><button class="expand-btn" onclick="openModal(this.previousElementSibling)">&#x26F6;</button></div></div>
+      <div class="golden-field"><div class="golden-label">Expected Output</div>
+      <div class="field-wrap"><textarea class="golden-textarea" onchange="updateGolden(${i},'expected_output',this.value)" placeholder="Ideal response...">${escHtml(g.expected_output || '')}</textarea><button class="expand-btn" onclick="openModal(this.previousElementSibling)">&#x26F6;</button></div></div>
+      <div class="golden-field"><div class="golden-label">Context</div>
+      <div class="field-wrap"><textarea class="golden-textarea" onchange="updateGolden(${i},'context',this.value)" placeholder="Background facts...">${escHtml((g.context || []).join('\\n'))}</textarea><button class="expand-btn" onclick="openModal(this.previousElementSibling)">&#x26F6;</button></div></div>
+    </div>`;
   }).join('');
-
   updateButtonState();
 }
 
 function addGolden() {
   goldens.push({ input: '', expected_output: '', context: [] });
   renderGoldens();
-  const items = document.querySelectorAll('.golden-item');
+  const items = document.querySelectorAll('#goldensContainer .golden-item');
   const last = items[items.length - 1];
   last.scrollIntoView({ behavior: 'smooth', block: 'center' });
   setTimeout(() => { last.querySelector('.golden-input').focus(); }, 300);
 }
-
-function removeGolden(i) {
-  goldens.splice(i, 1);
-  renderGoldens();
-}
-
+function removeGolden(i) { goldens.splice(i, 1); renderGoldens(); }
 function updateGolden(i, field, value) {
-  if (field === 'context') {
-    goldens[i].context = value.trim() ? value.split('\\n').filter(s => s.trim()) : [];
-  } else {
-    goldens[i][field] = value;
-  }
+  if (field === 'context') { goldens[i].context = value.trim() ? value.split('\\n').filter(s => s.trim()) : []; }
+  else { goldens[i][field] = value; }
   delete goldens[i]._aiGenerated;
 }
-
 function saveGoldens() {
-  const clean = goldens.filter(g => g.input.trim()).map(g => {
-    const obj = { input: g.input, expected_output: g.expected_output, context: g.context || [] };
-    return obj;
-  });
-  fetch('/api/goldens', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(clean)
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.success) {
-      goldens = clean;
-      renderGoldens();
-      showQuickStatus('Goldens saved! (' + clean.length + ' entries)');
-    }
-  });
+  const clean = goldens.filter(g => g.input.trim()).map(g => ({ input: g.input, expected_output: g.expected_output, context: g.context || [] }));
+  fetch('/api/goldens', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(clean) })
+  .then(r => r.json()).then(data => { if (data.success) { goldens = clean; renderGoldens(); showQuickStatus('Goldens saved!'); } });
 }
 
 function showQuickStatus(msg) {
-  const status = document.getElementById('statusBar');
-  status.style.display = '';
-  status.className = 'status-bar status-done';
-  status.textContent = msg;
-  setTimeout(() => { status.className = 'status-bar'; status.style.display = ''; }, 3000);
+  const s = document.getElementById('statusBar');
+  s.className = 'status visible status-done';
+  s.innerHTML = msg;
+  setTimeout(() => { s.className = 'status'; }, 3000);
 }
 
 // Tool Goldens
 function renderToolGoldens() {
   const container = document.getElementById('toolGoldensContainer');
   const empty = document.getElementById('toolGoldensEmpty');
-  const count = document.getElementById('toolGoldensCount');
-  count.textContent = '(' + toolGoldens.length + ')';
-
-  if (!toolGoldens.length) {
-    container.innerHTML = '';
-    empty.style.display = 'block';
-    document.getElementById('btnSaveToolGoldens').style.display = 'none';
-    updateButtonState();
-    return;
-  }
-
+  document.getElementById('toolGoldensCount').textContent = '(' + toolGoldens.length + ')';
+  if (!toolGoldens.length) { container.innerHTML = ''; empty.style.display = 'block'; document.getElementById('btnSaveToolGoldens').style.display = 'none'; updateButtonState(); return; }
   empty.style.display = 'none';
-  document.getElementById('btnSaveToolGoldens').style.display = 'block';
-
+  document.getElementById('btnSaveToolGoldens').style.display = 'inline-block';
   container.innerHTML = toolGoldens.map((g, i) => {
-    return `<div class="golden-item" data-index="${i}">
+    return `<div class="golden-item">
       <button class="golden-remove" onclick="removeToolGolden(${i})">&times;</button>
-      <div class="golden-field"><div class="golden-label">Input (User Message)</div>
-      <input class="golden-input" value="${escAttr(g.input || '')}" onchange="updateToolGolden(${i},'input',this.value)" placeholder="e.g. Find me the latest news on AI"></div>
-      <div class="golden-field"><div class="golden-label">Actual Output (Agent Response)</div>
-      <textarea class="golden-textarea" onchange="updateToolGolden(${i},'actual_output',this.value)" placeholder="What the agent actually responded...">${escHtml(g.actual_output || '')}</textarea></div>
-      <div class="golden-field"><div class="golden-label">Tools Called (Actual) — JSON array</div>
-      <textarea class="golden-textarea" onchange="updateToolGolden(${i},'tools_called',this.value)" placeholder='[{"name": "WebSearch", "input": {"query": "AI news"}}]'>${escHtml(JSON.stringify(g.tools_called || [], null, 2))}</textarea></div>
-      <div class="golden-field"><div class="golden-label">Expected Tools — JSON array</div>
-      <textarea class="golden-textarea" onchange="updateToolGolden(${i},'expected_tools',this.value)" placeholder='[{"name": "WebSearch", "input": {"query": "latest AI news"}}]'>${escHtml(JSON.stringify(g.expected_tools || [], null, 2))}</textarea></div>
-      </div>`;
+      <div class="golden-field"><div class="golden-label">Input</div>
+      <div class="field-wrap"><input class="golden-input" value="${escAttr(g.input || '')}" onchange="updateToolGolden(${i},'input',this.value)" placeholder="User message..."><button class="expand-btn" onclick="openModal(this.previousElementSibling)">&#x26F6;</button></div></div>
+      <div class="golden-field"><div class="golden-label">Actual Output</div>
+      <div class="field-wrap"><textarea class="golden-textarea" onchange="updateToolGolden(${i},'actual_output',this.value)" placeholder="Agent response...">${escHtml(g.actual_output || '')}</textarea><button class="expand-btn" onclick="openModal(this.previousElementSibling)">&#x26F6;</button></div></div>
+      <div class="golden-field"><div class="golden-label">Tools Called (JSON)</div>
+      <div class="field-wrap"><textarea class="golden-textarea" onchange="updateToolGolden(${i},'tools_called',this.value)">${escHtml(JSON.stringify(g.tools_called || [], null, 2))}</textarea><button class="expand-btn" onclick="openModal(this.previousElementSibling)">&#x26F6;</button></div></div>
+      <div class="golden-field"><div class="golden-label">Expected Tools (JSON)</div>
+      <div class="field-wrap"><textarea class="golden-textarea" onchange="updateToolGolden(${i},'expected_tools',this.value)">${escHtml(JSON.stringify(g.expected_tools || [], null, 2))}</textarea><button class="expand-btn" onclick="openModal(this.previousElementSibling)">&#x26F6;</button></div></div>
+    </div>`;
   }).join('');
-
   updateButtonState();
 }
-
 function addToolGolden() {
   toolGoldens.push({ input: '', actual_output: '', tools_called: [], expected_tools: [] });
   renderToolGoldens();
@@ -363,86 +420,53 @@ function addToolGolden() {
   last.scrollIntoView({ behavior: 'smooth', block: 'center' });
   setTimeout(() => { last.querySelector('.golden-input').focus(); }, 300);
 }
-
-function removeToolGolden(i) {
-  toolGoldens.splice(i, 1);
-  renderToolGoldens();
-}
-
+function removeToolGolden(i) { toolGoldens.splice(i, 1); renderToolGoldens(); }
 function updateToolGolden(i, field, value) {
-  if (field === 'tools_called' || field === 'expected_tools') {
-    try { toolGoldens[i][field] = JSON.parse(value); } catch(e) {}
-  } else {
-    toolGoldens[i][field] = value;
-  }
+  if (field === 'tools_called' || field === 'expected_tools') { try { toolGoldens[i][field] = JSON.parse(value); } catch(e) {} }
+  else { toolGoldens[i][field] = value; }
+}
+function saveToolGoldens() {
+  const clean = toolGoldens.filter(g => g.input.trim()).map(g => ({ input: g.input, actual_output: g.actual_output, tools_called: g.tools_called || [], expected_tools: g.expected_tools || [] }));
+  fetch('/api/tool_goldens', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(clean) })
+  .then(r => r.json()).then(data => { if (data.success) { toolGoldens = clean; renderToolGoldens(); showQuickStatus('Tool tests saved!'); } });
 }
 
-function saveToolGoldens() {
-  const clean = toolGoldens.filter(g => g.input.trim()).map(g => ({
-    input: g.input, actual_output: g.actual_output,
-    tools_called: g.tools_called || [], expected_tools: g.expected_tools || []
-  }));
-  fetch('/api/tool_goldens', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(clean)
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.success) {
-      toolGoldens = clean;
-      renderToolGoldens();
-      showQuickStatus('Tool tests saved! (' + clean.length + ' entries)');
-    }
-  });
+// Optimizer Config
+function saveOptConfig() {
+  const data = {
+    algorithm: document.getElementById('optAlgo').value,
+    iterations: parseInt(document.getElementById('optIter').value) || 5,
+    metric: document.getElementById('optMetric').value,
+    threshold: parseFloat(document.getElementById('optThreshold').value) || 0.7
+  };
+  fetch('/api/optimizer_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) })
+  .then(r => r.json()).then(d => { if (d.success) showQuickStatus('Optimizer settings saved!'); });
 }
 
 // AI Generation
-function toggleAiSection() {
-  const section = document.getElementById('aiSection');
-  section.classList.toggle('visible');
-}
-
+function toggleAiSection() { document.getElementById('aiSection').classList.toggle('visible'); }
 function generateGoldens() {
-  const description = document.getElementById('aiDescription').value.trim();
-  if (!description) {
-    document.getElementById('aiDescription').style.borderColor = '#f87171';
-    document.getElementById('aiDescription').focus();
-    return;
-  }
-  document.getElementById('aiDescription').style.borderColor = '#30363d';
-
+  const desc = document.getElementById('aiDescription').value.trim();
+  if (!desc) { document.getElementById('aiDescription').focus(); return; }
   const count = parseInt(document.getElementById('aiCount').value) || 5;
   const prompt = document.getElementById('promptInput').value;
-  const btn = document.getElementById('btnGenerate');
-  const statusEl = document.getElementById('aiStatus');
-
-  btn.disabled = true;
-  statusEl.classList.add('visible');
-
-  fetch('/api/generate_goldens', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ description: description, count: count, system_prompt: prompt })
-  })
-  .then(r => r.json())
-  .then(data => {
-    btn.disabled = false;
-    statusEl.classList.remove('visible');
+  document.getElementById('btnGenerate').disabled = true;
+  document.getElementById('aiStatus').classList.add('visible');
+  fetch('/api/generate_goldens', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ description: desc, count: count, system_prompt: prompt }) })
+  .then(r => r.json()).then(data => {
+    document.getElementById('btnGenerate').disabled = false;
+    document.getElementById('aiStatus').classList.remove('visible');
     if (data.success && data.goldens) {
       data.goldens.forEach(g => { g._aiGenerated = true; });
       goldens = goldens.concat(data.goldens);
       renderGoldens();
       document.getElementById('aiSection').classList.remove('visible');
       document.getElementById('aiDescription').value = '';
-      showQuickStatus('Generated ' + data.goldens.length + ' goldens! Review and edit them below, then click Save.');
-    } else {
-      alert('Error generating goldens: ' + (data.message || 'Unknown error'));
-    }
-  })
-  .catch(err => {
-    btn.disabled = false;
-    statusEl.classList.remove('visible');
+      showQuickStatus('Generated ' + data.goldens.length + ' goldens!');
+    } else { alert('Error: ' + (data.message || 'Unknown')); }
+  }).catch(err => {
+    document.getElementById('btnGenerate').disabled = false;
+    document.getElementById('aiStatus').classList.remove('visible');
     alert('Error: ' + err.message);
   });
 }
@@ -450,211 +474,166 @@ function generateGoldens() {
 // Run Actions
 function runAction(action) {
   if (running) return;
-
-  // Check appropriate goldens exist
-  if (action === 'test_tools') {
-    const cleanTools = toolGoldens.filter(g => g.input.trim());
-    if (!cleanTools.length) return;
-  } else {
-    const clean = goldens.filter(g => g.input.trim());
-    if (!clean.length) return;
-  }
+  if (action === 'test_tools') { if (!toolGoldens.filter(g => g.input.trim()).length) return; }
+  else { if (!goldens.filter(g => g.input.trim()).length) return; }
 
   running = true;
   updateButtonState();
   const prompt = document.getElementById('promptInput').value;
   const status = document.getElementById('statusBar');
-  status.style.display = '';
-  status.className = 'status-bar status-running';
-  status.innerHTML = '<span class="spinner"></span>Running ' + action.replace('_', ' ') + '...';
+  status.className = 'status visible status-running';
+  const logEl = document.getElementById('logOutput');
+  logEl.textContent = '';
+  logEl.classList.add('visible');
   const startTime = Date.now();
 
-  // Update elapsed time every second
+  const labels = { test_prompts: 'Evaluating prompts', test_tools: 'Evaluating tools', optimize: 'Optimizing prompt' };
+  status.innerHTML = '<span class="spinner"></span>' + (labels[action] || 'Running') + '...';
+
   const timerInterval = setInterval(() => {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
-    status.innerHTML = '<span class="spinner"></span>Running ' + action.replace('_', ' ') + '... (' + elapsed + 's)';
+    status.innerHTML = '<span class="spinner"></span>' + (labels[action] || 'Running') + '... ' + elapsed + 's';
   }, 1000);
 
-  // Save all data first, then run
-  const savePromises = [
-    fetch('/api/goldens', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(goldens.filter(g => g.input.trim()).map(g => ({
-        input: g.input, expected_output: g.expected_output, context: g.context || []
-      })))
-    }),
-    fetch('/api/tool_goldens', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(toolGoldens.filter(g => g.input.trim()).map(g => ({
-        input: g.input, actual_output: g.actual_output,
-        tools_called: g.tools_called || [], expected_tools: g.expected_tools || []
-      })))
-    })
+  const saves = [
+    fetch('/api/goldens', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(goldens.filter(g => g.input.trim()).map(g => ({ input: g.input, expected_output: g.expected_output, context: g.context || [] }))) }),
+    fetch('/api/tool_goldens', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(toolGoldens.filter(g => g.input.trim()).map(g => ({ input: g.input, actual_output: g.actual_output, tools_called: g.tools_called || [], expected_tools: g.expected_tools || [] }))) })
   ];
 
-  Promise.all(savePromises).then(() => {
-    return fetch('/api/run', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({action: action, prompt: prompt})
-    });
-  })
-  .then(r => r.json())
-  .then(data => {
-    clearInterval(timerInterval);
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    running = false;
-    updateButtonState();
-    if (data.success) {
-      status.className = 'status-bar status-done';
-      status.textContent = 'Done in ' + elapsed + 's! ' + (data.message || '');
-    } else {
-      status.className = 'status-bar status-error';
-      status.textContent = 'Error (' + elapsed + 's): ' + (data.message || 'Unknown error');
-    }
-    loadResults();
-  })
-  .catch(err => {
-    clearInterval(timerInterval);
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    running = false;
-    updateButtonState();
-    status.className = 'status-bar status-error';
-    status.textContent = 'Error: ' + err.message;
+  Promise.all(saves).then(() => fetch('/api/run', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({action, prompt}) }))
+  .then(r => r.json()).then(() => {
+    const poll = setInterval(() => {
+      fetch('/api/log').then(r => r.json()).then(data => {
+        if (data.log) { logEl.textContent = data.log; logEl.scrollTop = logEl.scrollHeight; }
+        if (data.done) {
+          clearInterval(poll); clearInterval(timerInterval);
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          running = false; updateButtonState();
+          if (data.success) { status.className = 'status visible status-done'; status.innerHTML = '&#10003; ' + data.message + ' <span style="opacity:0.7;margin-left:8px;">' + elapsed + 's</span>'; }
+          else { status.className = 'status visible status-error'; status.innerHTML = '&#10007; ' + data.message + ' <span style="opacity:0.7;margin-left:8px;">' + elapsed + 's</span>'; }
+          loadResults();
+        }
+      });
+    }, 500);
+  }).catch(err => {
+    clearInterval(timerInterval); running = false; updateButtonState();
+    status.className = 'status visible status-error'; status.innerHTML = 'Error: ' + err.message;
   });
 }
 
 // Results
-function loadResults() {
-  fetch('/api/results')
-    .then(r => r.json())
-    .then(data => render(data.reverse()))
-    .catch(() => render([]));
-}
+function loadResults() { fetch('/api/results').then(r => r.json()).then(data => render(data.reverse())).catch(() => render([])); }
 loadResults();
 
 function render(runs) {
   const app = document.getElementById('app');
-  if (!runs.length) {
-    app.innerHTML = '<div class="empty">No runs yet. Paste a prompt above, add goldens, and click a button to get started.</div>';
-    return;
-  }
-  app.innerHTML = runs.map((run, i) => renderRun(run, i)).join('');
-  document.querySelectorAll('.run-header').forEach(h => {
-    h.addEventListener('click', () => h.parentElement.classList.toggle('open'));
-  });
-  document.querySelectorAll('.tab').forEach(t => {
-    t.addEventListener('click', () => {
-      const group = t.closest('.run-details');
-      group.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-      group.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
-      t.classList.add('active');
-      group.querySelector('.tab-content[data-tab="' + t.dataset.tab + '"]').classList.add('active');
-    });
-  });
+  if (!runs.length) { app.innerHTML = '<div class="empty-state">No runs yet. Add goldens and run an evaluation.</div>'; return; }
+  app.innerHTML = runs.map(renderRun).join('');
+  document.querySelectorAll('.run-header').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('open')));
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    const g = t.closest('.run-details');
+    g.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    g.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    g.querySelector('.tab-content[data-tab="' + t.dataset.tab + '"]').classList.add('active');
+  }));
 }
 
-function renderRun(run, i) {
+function renderRun(run) {
   const name = (run.system_prompt || 'No system prompt').substring(0, 50);
   const date = new Date(run.timestamp).toLocaleString();
   const duration = run.duration_seconds ? run.duration_seconds + 's' : '';
-  const type = run.type;
   let badge = '';
-  if (type === 'optimization') {
-    badge = '<span class="run-badge badge-opt">OPTIMIZED</span>';
-  } else if (type === 'tool_evaluation') {
-    badge = '<span class="run-badge badge-tools">TOOLS</span>';
-  } else if (run.tests && run.tests.every(t => t.passed)) {
-    badge = '<span class="run-badge badge-pass">ALL PASSED</span>';
-  } else {
-    const failed = run.tests ? run.tests.filter(t => !t.passed).length : 0;
-    badge = '<span class="run-badge badge-fail">' + failed + ' FAILED</span>';
-  }
+  if (run.type === 'optimization') badge = '<span class="badge badge-opt">Optimized</span>';
+  else if (run.type === 'tool_evaluation') badge = '<span class="badge badge-tools">Tools</span>';
+  else if (run.tests && run.tests.every(t => t.passed)) badge = '<span class="badge badge-pass">Passed</span>';
+  else { const f = run.tests ? run.tests.filter(t => !t.passed).length : 0; badge = '<span class="badge badge-fail">' + f + ' Failed</span>'; }
 
   let details = '';
   const hasPromptTests = run.tests && run.tests.length > 0;
   const hasToolTests = run.tool_tests && run.tool_tests.length > 0;
+  const allTests = (run.tests || []).concat(run.tool_tests || []);
+
+  if (allTests.length) {
+    const passed = allTests.filter(t => t.passed).length;
+    const failed = allTests.filter(t => !t.passed).length;
+    const avg = (allTests.reduce((s, t) => s + (t.score || 0), 0) / allTests.length).toFixed(2);
+    details += '<div class="summary-bar"><span class="summary-item summary-pass">&#10003; ' + passed + ' passed</span>';
+    if (failed) details += '<span class="summary-item summary-fail">&#10007; ' + failed + ' failed</span>';
+    details += '<span class="summary-item summary-total">' + allTests.length + ' total</span><span class="summary-item summary-score">avg ' + avg + '</span>';
+    if (duration) details += '<span class="summary-item summary-time">' + duration + '</span>';
+    details += '</div>';
+  }
+
+  details += '<div class="detail-section"><div class="detail-title">Prompt</div><div class="prompt-box">' + escHtml(run.system_prompt || '(empty)') + '</div></div>';
+  if (run.optimized_prompt) details += '<div class="detail-section"><div class="detail-title">Optimized Prompt</div><div class="prompt-box">' + escHtml(run.optimized_prompt) + '</div></div>';
+
   const hasTabs = hasPromptTests && hasToolTests;
-
-  details += '<div class="section"><div class="section-title">System Prompt Used</div>';
-  details += '<div class="prompt-box">' + escHtml(run.system_prompt || '(empty)') + '</div></div>';
-
-  if (run.optimized_prompt) {
-    details += '<div class="section"><div class="section-title">Optimized Prompt</div>';
-    details += '<div class="prompt-box">' + escHtml(run.optimized_prompt) + '</div></div>';
-  }
-
-  if (hasTabs) {
-    details += '<div class="tab-row"><div class="tab active" data-tab="prompt">Prompt Tests</div><div class="tab" data-tab="tools">Tool Tests</div></div>';
-  }
+  if (hasTabs) details += '<div class="tab-row"><div class="tab active" data-tab="prompt">Prompt Tests</div><div class="tab" data-tab="tools">Tool Tests</div></div>';
 
   if (hasPromptTests) {
-    details += '<div class="tab-content' + (hasTabs ? ' active' : '') + '" data-tab="prompt">';
-    details += '<div class="section"><div class="section-title">Prompt Test Results</div>';
-    details += renderTestTable(run.tests);
-    details += '</div>';
-    const failures = run.tests.filter(t => !t.passed);
-    if (failures.length) {
-      details += '<div class="section"><div class="section-title">Areas of Improvement</div>';
-      failures.forEach(f => {
-        details += '<div class="improvement"><strong>' + escHtml(f.metric) + '</strong> on "' + escHtml(f.input.substring(0, 40)) + '"<br>' + escHtml(f.reason || 'No reason provided') + '</div>';
-      });
-      details += '</div>';
-    }
+    details += '<div class="tab-content' + (hasTabs ? ' active' : '') + '" data-tab="prompt"><div class="detail-section"><div class="detail-title">Results</div>' + renderTestTable(run.tests) + '</div>';
+    const fails = run.tests.filter(t => !t.passed);
+    if (fails.length) { details += '<div class="detail-section"><div class="detail-title">Improvements</div>'; fails.forEach(f => { details += '<div class="improvement"><strong>' + escHtml(f.metric) + '</strong> on "' + escHtml(f.input.substring(0,40)) + '"<br>' + escHtml(f.reason || '') + '</div>'; }); details += '</div>'; }
     details += '</div>';
   }
-
   if (hasToolTests) {
-    details += '<div class="tab-content' + (hasTabs ? '' : ' active') + '" data-tab="tools">';
-    details += '<div class="section"><div class="section-title">Tool Test Results</div>';
-    details += renderTestTable(run.tool_tests);
-    details += '</div>';
-    const toolFailures = run.tool_tests.filter(t => !t.passed);
-    if (toolFailures.length) {
-      details += '<div class="section"><div class="section-title">Tool Areas of Improvement</div>';
-      toolFailures.forEach(f => {
-        details += '<div class="improvement"><strong>' + escHtml(f.metric) + '</strong> on "' + escHtml(f.input.substring(0, 40)) + '"<br>' + escHtml(f.reason || 'No reason provided') + '</div>';
-      });
-      details += '</div>';
-    }
+    details += '<div class="tab-content' + (hasTabs ? '' : ' active') + '" data-tab="tools"><div class="detail-section"><div class="detail-title">Results</div>' + renderTestTable(run.tool_tests) + '</div>';
+    const fails = run.tool_tests.filter(t => !t.passed);
+    if (fails.length) { details += '<div class="detail-section"><div class="detail-title">Improvements</div>'; fails.forEach(f => { details += '<div class="improvement"><strong>' + escHtml(f.metric) + '</strong> on "' + escHtml(f.input.substring(0,40)) + '"<br>' + escHtml(f.reason || '') + '</div>'; }); details += '</div>'; }
     details += '</div>';
   }
 
-  const durationHtml = duration ? '<span class="run-duration">' + duration + '</span>' : '';
-  return '<div class="run-row"><div class="run-header"><span class="arrow">&#9654;</span><span class="run-name">' + escHtml(name) + '</span>' + badge + durationHtml + '<span class="run-date">' + date + '</span></div><div class="run-details">' + details + '</div></div>';
+  const dur = duration ? '<span class="run-duration">' + duration + '</span>' : '';
+  return '<div class="run-row"><div class="run-header"><span class="arrow">&#9654;</span><span class="run-name">' + escHtml(name) + '</span>' + badge + dur + '<span class="run-date">' + date + '</span></div><div class="run-details">' + details + '</div></div>';
 }
 
 function renderTestTable(tests) {
-  let html = '<table class="test-table"><thead><tr><th>Input</th><th>Metric</th><th>Score</th><th>Status</th></tr></thead><tbody>';
+  let h = '<table class="test-table"><thead><tr><th>Input</th><th>Metric</th><th>Score</th><th>Status</th></tr></thead><tbody>';
   tests.forEach(t => {
-    const scoreClass = t.passed ? 'score-pass' : 'score-fail';
-    const status = t.passed ? '&#10003; Pass' : '&#10007; Fail';
-    html += '<tr>';
-    html += '<td>' + escHtml(t.input.substring(0, 50)) + '</td>';
-    html += '<td>' + escHtml(t.metric) + '</td>';
-    html += '<td class="score ' + scoreClass + '">' + (t.score !== null && t.score !== undefined ? t.score.toFixed(2) : 'N/A') + '</td>';
-    html += '<td class="' + scoreClass + '">' + status + '</td>';
-    html += '</tr>';
-    if (t.reason) {
-      html += '<tr><td colspan="4"><div class="reason-text">' + escHtml(t.reason) + '</div></td></tr>';
-    }
+    const c = t.passed ? 'score-pass' : 'score-fail';
+    h += '<tr><td>' + escHtml(t.input.substring(0,50)) + '</td><td>' + escHtml(t.metric) + '</td><td class="score ' + c + '">' + (t.score != null ? t.score.toFixed(2) : '-') + '</td><td class="' + c + '">' + (t.passed ? '&#10003;' : '&#10007;') + '</td></tr>';
+    if (t.reason) h += '<tr><td colspan="4" class="reason-text">' + escHtml(t.reason) + '</td></tr>';
   });
-  html += '</tbody></table>';
-  return html;
+  return h + '</tbody></table>';
 }
 
-function escHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
-}
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function escAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-function escAttr(s) {
-  return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// Modal
+let modalTarget = null;
+function openModal(el) {
+  modalTarget = el;
+  const modal = document.getElementById('modalOverlay');
+  document.getElementById('modalTextarea').value = el.value !== undefined ? el.value : el.textContent;
+  document.getElementById('modalTitle').textContent = el.closest('.golden-field')?.querySelector('.golden-label')?.textContent || 'Edit';
+  modal.classList.add('visible');
+  document.getElementById('modalTextarea').focus();
 }
+function closeModal() { document.getElementById('modalOverlay').classList.remove('visible'); modalTarget = null; }
+function saveModal() {
+  if (modalTarget) { modalTarget.value = document.getElementById('modalTextarea').value; modalTarget.dispatchEvent(new Event('change')); }
+  closeModal();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.getElementById('promptInput').addEventListener('dblclick', function() { openModal(this); });
 </script>
+
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Edit</span>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body"><textarea class="modal-textarea" id="modalTextarea"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-sm btn-gold" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>"""
 
@@ -666,6 +645,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html")
             self.end_headers()
             self.wfile.write(HTML.encode())
+        elif self.path == "/logo.png":
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.end_headers()
+            with open("logo.png", "rb") as f:
+                self.wfile.write(f.read())
         elif self.path == "/api/results":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -693,6 +678,25 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     self.wfile.write(f.read().encode())
             else:
                 self.wfile.write(b"[]")
+        elif self.path == "/api/log":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "log": _run_state.get("log", ""),
+                "done": _run_state.get("done", False),
+                "success": _run_state.get("success", False),
+                "message": _run_state.get("message", ""),
+            }).encode())
+        elif self.path == "/api/optimizer_config":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            if os.path.exists("optimizer_config.json"):
+                with open("optimizer_config.json") as f:
+                    self.wfile.write(f.read().encode())
+            else:
+                self.wfile.write(b'{"algorithm":"GEPA","iterations":5,"metric":"AnswerRelevancy","threshold":0.7}')
         else:
             self.send_response(404)
             self.end_headers()
@@ -708,6 +712,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
         elif self.path == "/api/tool_goldens":
             with open(TOOL_GOLDENS_FILE, "w") as f:
+                json.dump(body, f, indent=2)
+            self._json_response({"success": True})
+
+        elif self.path == "/api/optimizer_config":
+            with open("optimizer_config.json", "w") as f:
                 json.dump(body, f, indent=2)
             self._json_response({"success": True})
 
@@ -754,37 +763,57 @@ Return ONLY the JSON array, no other text."""
             with open("system_prompt.txt", "w") as f:
                 f.write(prompt)
 
-            try:
-                if action == "test_prompts":
-                    result = subprocess.run(
-                        ["deepeval", "test", "run", "test_prompts.py", "--", "--tb=line", "-q"],
-                        capture_output=True, text=True, timeout=300
-                    )
-                    success = result.returncode == 0
-                    msg = "All tests passed!" if success else "Some tests failed. Check results below."
-                elif action == "test_tools":
-                    result = subprocess.run(
-                        ["deepeval", "test", "run", "test_tools.py", "--", "--tb=line", "-q"],
-                        capture_output=True, text=True, timeout=300
-                    )
-                    success = result.returncode == 0
-                    msg = "All tool tests passed!" if success else "Some tool tests failed. Check results below."
-                elif action == "optimize":
-                    result = subprocess.run(
-                        ["python3", "optimize_prompt.py"],
-                        capture_output=True, text=True, timeout=600
-                    )
-                    success = result.returncode == 0
-                    msg = "Optimization complete! Check the optimized prompt below." if success else result.stderr[-200:] if result.stderr else "Optimization failed."
-                else:
-                    success = False
-                    msg = "Unknown action"
+            _run_state["running"] = True
+            _run_state["log"] = ""
+            _run_state["done"] = False
+            _run_state["success"] = False
+            _run_state["message"] = ""
 
-                self._json_response({"success": success, "message": msg})
-            except subprocess.TimeoutExpired:
-                self._json_response({"success": False, "message": "Timed out"})
-            except Exception as e:
-                self._json_response({"success": False, "message": str(e)})
+            def run_in_bg():
+                try:
+                    if action == "test_prompts":
+                        cmd = ["deepeval", "test", "run", "test_prompts.py", "--", "--tb=short"]
+                    elif action == "test_tools":
+                        cmd = ["deepeval", "test", "run", "test_tools.py", "--", "--tb=short"]
+                    elif action == "optimize":
+                        cmd = ["python3", "-u", "optimize_prompt.py"]
+                    else:
+                        _run_state["done"] = True
+                        _run_state["success"] = False
+                        _run_state["message"] = "Unknown action"
+                        _run_state["running"] = False
+                        return
+
+                    env = os.environ.copy()
+                    env["PYTHONUNBUFFERED"] = "1"
+                    proc = subprocess.Popen(
+                        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                        text=True, bufsize=1, env=env
+                    )
+                    for line in proc.stdout:
+                        _run_state["log"] += line
+                    proc.wait()
+
+                    success = proc.returncode == 0
+                    if action == "test_prompts":
+                        msg = "All tests passed!" if success else "Some tests failed. Check results below."
+                    elif action == "test_tools":
+                        msg = "All tool tests passed!" if success else "Some tool tests failed. Check results below."
+                    elif action == "optimize":
+                        msg = "Optimization complete! Check the optimized prompt below." if success else "Optimization failed."
+
+                    _run_state["success"] = success
+                    _run_state["message"] = msg
+                except Exception as e:
+                    _run_state["success"] = False
+                    _run_state["message"] = str(e)
+                finally:
+                    _run_state["done"] = True
+                    _run_state["running"] = False
+
+            threading.Thread(target=run_in_bg, daemon=True).start()
+            self._json_response({"success": True, "message": "Started"})
+
         else:
             self.send_response(404)
             self.end_headers()
