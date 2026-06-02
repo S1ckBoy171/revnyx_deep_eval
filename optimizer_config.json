@@ -1,6 +1,6 @@
 {
   "algorithm": "GEPA",
-  "iterations": 5,
+  "iterations": 4,
   "metric": "AnswerRelevancy",
   "threshold": 0.7
 }

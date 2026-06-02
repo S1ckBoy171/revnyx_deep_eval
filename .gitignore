@@ -3,3 +3,5 @@ __pycache__/
 .env
 .deepeval/
 optimized_prompts.txt
+system_prompt.txt
+goldens.json

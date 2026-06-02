@@ -6,12 +6,15 @@ Then open: http://localhost:8050
 
 import json
 import os
+import re
 import subprocess
 import threading
 import time as _time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from dotenv import load_dotenv
 from openai import OpenAI
+
+_ansi_re = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?\x07')
 
 load_dotenv()
 
@@ -60,28 +63,39 @@ HTML = """<!DOCTYPE html>
 html { scroll-behavior: smooth; }
 body { font-family: var(--font); background: var(--bg-deep); color: var(--text-primary); min-height: 100vh; line-height: 1.5; }
 
+/* Fade-in animation */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes glow { 0%, 100% { box-shadow: 0 0 0 rgba(212,175,55,0); } 50% { box-shadow: 0 0 20px rgba(212,175,55,0.08); } }
+
 /* Layout */
-.container { max-width: 1100px; margin: 0 auto; padding: 48px 32px; }
+.container { max-width: 900px; margin: 0 auto; padding: 48px 32px; }
+@media (min-width: 1200px) { .container { max-width: 1000px; } }
+@media (min-width: 1600px) { .container { max-width: 1100px; } }
 
 /* Header */
-.header { display: flex; align-items: center; gap: 16px; margin-bottom: 48px; }
-.header img { width: 44px; height: 44px; border-radius: 10px; }
+.header { display: flex; align-items: center; gap: 16px; margin-bottom: 48px; animation: fadeUp 0.5s ease; }
+.header img { width: 44px; height: 44px; border-radius: 10px; transition: transform 0.3s; }
+.header img:hover { transform: scale(1.08) rotate(-2deg); }
 .header-text h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
 .header-text p { font-size: 13px; color: var(--text-muted); font-weight: 300; letter-spacing: 0.2px; }
 
 /* Cards */
-.card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 28px; margin-bottom: 24px; transition: border-color 0.2s; }
-.card:hover { border-color: var(--border); }
+.card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 28px; margin-bottom: 24px; transition: border-color 0.3s, box-shadow 0.3s, transform 0.2s; animation: fadeUp 0.5s ease backwards; }
+.card:nth-child(2) { animation-delay: 0.08s; }
+.card:nth-child(3) { animation-delay: 0.16s; }
+.card:nth-child(4) { animation-delay: 0.24s; }
+.card:hover { border-color: var(--border); box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
 .card-title { font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); margin-bottom: 16px; }
 
 /* Prompt Input */
-.prompt-area { width: 100%; min-height: 120px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; font-family: var(--mono); font-size: 13px; color: var(--text-primary); resize: vertical; line-height: 1.7; transition: border-color 0.2s; }
-.prompt-area:focus { outline: none; border-color: var(--accent); }
+.prompt-area { width: 100%; min-height: 120px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; font-family: var(--mono); font-size: 13px; color: var(--text-primary); resize: vertical; line-height: 1.7; transition: border-color 0.3s, box-shadow 0.3s; }
+.prompt-area:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
 
 /* Buttons */
 .btn-group { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
-.btn { padding: 10px 22px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-primary); font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; letter-spacing: 0.2px; }
-.btn:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--text-muted); }
+.btn { padding: 10px 22px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-primary); font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s cubic-bezier(0.4,0,0.2,1); letter-spacing: 0.2px; }
+.btn:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--text-muted); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+.btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
 .btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .btn-accent { border-color: var(--accent); color: var(--accent); }
 .btn-accent:hover:not(:disabled) { background: var(--accent-dim); }
@@ -96,7 +110,7 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
 .btn-gold:hover:not(:disabled) { background: #e6c84a; }
 
 /* Status */
-.status { margin-top: 16px; padding: 12px 16px; border-radius: var(--radius); font-size: 13px; display: none; align-items: center; gap: 10px; font-family: var(--mono); }
+.status { margin-top: 16px; padding: 12px 16px; border-radius: var(--radius); font-size: 13px; display: none; align-items: center; gap: 10px; font-family: var(--mono); animation: fadeUp 0.3s ease; }
 .status.visible { display: flex; }
 .status-running { background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary); }
 .status-done { background: var(--success-dim); border: 1px solid rgba(34,197,94,0.25); color: var(--success); }
@@ -115,9 +129,9 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
 .goldens-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .goldens-header-left { display: flex; align-items: baseline; gap: 8px; }
 .goldens-count { font-size: 12px; color: var(--text-muted); font-weight: 400; }
-.golden-item { background: var(--bg-deep); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 18px; margin-bottom: 12px; position: relative; transition: border-color 0.2s; }
-.golden-item:hover { border-color: var(--border); }
-.golden-item.ai-generated { border-color: var(--accent); border-style: dashed; }
+.golden-item { background: var(--bg-deep); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 18px; margin-bottom: 12px; position: relative; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); animation: fadeUp 0.3s ease backwards; }
+.golden-item:hover { border-color: var(--border); box-shadow: 0 2px 16px rgba(0,0,0,0.2); transform: translateY(-1px); }
+.golden-item.ai-generated { border-color: var(--accent); border-style: dashed; animation: glow 2s ease infinite; }
 .golden-remove { position: absolute; top: 12px; right: 12px; background: none; border: 1px solid var(--border); color: var(--text-muted); width: 22px; height: 22px; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
 .golden-remove:hover { border-color: var(--error); color: var(--error); }
 .golden-field { margin-bottom: 12px; }
@@ -134,8 +148,9 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
 .ai-section.visible { display: block; }
 .ai-label { font-size: 12px; color: var(--accent); margin-bottom: 8px; font-weight: 500; letter-spacing: 0.3px; }
 .ai-row { display: flex; gap: 12px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
-.ai-count-input { width: 56px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 13px; color: var(--text-primary); text-align: center; font-family: var(--mono); }
+.ai-count-input { width: 56px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 13px; color: var(--text-primary); text-align: center; font-family: var(--mono); -moz-appearance: textfield; }
 .ai-count-input:focus { outline: none; border-color: var(--accent); }
+.ai-count-input::-webkit-inner-spin-button, .ai-count-input::-webkit-outer-spin-button { opacity: 1; filter: invert(1); }
 .ai-status { margin-top: 10px; font-size: 12px; color: var(--text-muted); display: none; align-items: center; gap: 8px; }
 .ai-status.visible { display: flex; }
 
@@ -153,8 +168,13 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
 
 /* Run History */
 .empty-state { color: var(--text-muted); text-align: center; padding: 60px 20px; font-size: 14px; border: 1px dashed var(--border); border-radius: var(--radius); }
-.run-row { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 10px; margin-bottom: 10px; overflow: hidden; transition: all 0.2s; }
-.run-row:hover { border-color: var(--border); }
+.run-row { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 10px; margin-bottom: 10px; overflow: hidden; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); animation: fadeUp 0.4s ease backwards; }
+.run-row:nth-child(1) { animation-delay: 0s; }
+.run-row:nth-child(2) { animation-delay: 0.05s; }
+.run-row:nth-child(3) { animation-delay: 0.1s; }
+.run-row:nth-child(4) { animation-delay: 0.15s; }
+.run-row:nth-child(5) { animation-delay: 0.2s; }
+.run-row:hover { border-color: var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.25); transform: translateY(-1px); }
 .run-header { display: flex; align-items: center; padding: 16px 22px; cursor: pointer; gap: 14px; }
 .run-header .arrow { color: var(--text-muted); font-size: 10px; transition: transform 0.2s; }
 .run-row.open .arrow { transform: rotate(90deg); }
@@ -202,9 +222,10 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
 .tab-content.active { display: block; }
 
 /* Modal */
-.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 40px; backdrop-filter: blur(4px); }
-.modal-overlay.visible { display: flex; }
-.modal-box { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 860px; height: 75vh; display: flex; flex-direction: column; overflow: hidden; }
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 40px; backdrop-filter: blur(8px); opacity: 0; transition: opacity 0.2s; }
+.modal-overlay.visible { display: flex; opacity: 1; }
+.modal-box { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 860px; height: 75vh; display: flex; flex-direction: column; overflow: hidden; transform: scale(0.96); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); }
+.modal-overlay.visible .modal-box { transform: scale(1); }
 .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--border-subtle); }
 .modal-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
 .modal-close { background: none; border: 1px solid var(--border); color: var(--text-muted); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
@@ -237,6 +258,7 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
   <div class="btn-group">
     <button class="btn btn-success" id="btnTest" onclick="runAction('test_prompts')" disabled>Test Prompt</button>
     <button class="btn btn-blue" id="btnTools" onclick="runAction('test_tools')" disabled>Test Tools</button>
+    <button class="btn btn-accent" id="btnConv" onclick="runAction('test_conversation')" disabled>Test Conversation</button>
     <button class="btn btn-purple" id="btnOptimize" onclick="runAction('optimize')" disabled>Optimize</button>
     <button class="btn btn-sm" onclick="document.getElementById('optSettings').classList.toggle('visible')" style="margin-left:auto;opacity:0.7;">&#9881; Settings</button>
   </div>
@@ -311,6 +333,20 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
   <button class="btn btn-sm btn-gold" id="btnSaveToolGoldens" onclick="saveToolGoldens()" style="display:none;margin-top:12px;">Save Tool Tests</button>
 </div>
 
+<!-- Conversation Goldens -->
+<div class="card">
+  <div class="goldens-header">
+    <div class="goldens-header-left">
+      <div class="card-title" style="margin:0;">Conversation Scenarios</div>
+      <span class="goldens-count" id="convGoldensCount">(0)</span>
+    </div>
+    <div><button class="btn btn-sm" onclick="addConvGolden()">+ Add Scenario</button></div>
+  </div>
+  <div id="convGoldensContainer"></div>
+  <div class="goldens-empty" id="convGoldensEmpty">No conversation scenarios yet. Add a scenario to test multi-turn flows.</div>
+  <button class="btn btn-sm btn-gold" id="btnSaveConvGoldens" onclick="saveConvGoldens()" style="display:none;margin-top:12px;">Save Scenarios</button>
+</div>
+
 <hr class="divider">
 <div class="section-label">Run History</div>
 <div id="app"></div>
@@ -320,10 +356,12 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
 <script>
 let goldens = [];
 let toolGoldens = [];
+let convGoldens = [];
 let running = false;
 
 fetch('/api/goldens').then(r => r.json()).then(data => { goldens = data; renderGoldens(); }).catch(() => renderGoldens());
 fetch('/api/tool_goldens').then(r => r.json()).then(data => { toolGoldens = data; renderToolGoldens(); }).catch(() => renderToolGoldens());
+fetch('/api/conv_goldens').then(r => r.json()).then(data => { convGoldens = data; renderConvGoldens(); }).catch(() => renderConvGoldens());
 fetch('/api/optimizer_config').then(r => r.json()).then(data => {
   document.getElementById('optAlgo').value = data.algorithm || 'GEPA';
   document.getElementById('optIter').value = data.iterations || 5;
@@ -334,8 +372,10 @@ fetch('/api/optimizer_config').then(r => r.json()).then(data => {
 function updateButtonState() {
   const hasGoldens = goldens.length > 0;
   const hasToolGoldens = toolGoldens.length > 0;
+  const hasConvGoldens = convGoldens.length > 0;
   document.getElementById('btnTest').disabled = !hasGoldens || running;
   document.getElementById('btnTools').disabled = !hasToolGoldens || running;
+  document.getElementById('btnConv').disabled = !hasConvGoldens || running;
   document.getElementById('btnOptimize').disabled = !hasGoldens || running;
   document.getElementById('disabledNotice').style.display = hasGoldens ? 'none' : 'block';
 }
@@ -431,6 +471,68 @@ function saveToolGoldens() {
   .then(r => r.json()).then(data => { if (data.success) { toolGoldens = clean; renderToolGoldens(); showQuickStatus('Tool tests saved!'); } });
 }
 
+// Conversation Goldens
+function renderConvGoldens() {
+  const container = document.getElementById('convGoldensContainer');
+  const empty = document.getElementById('convGoldensEmpty');
+  document.getElementById('convGoldensCount').textContent = '(' + convGoldens.length + ')';
+  if (!convGoldens.length) { container.innerHTML = ''; empty.style.display = 'block'; document.getElementById('btnSaveConvGoldens').style.display = 'none'; updateButtonState(); return; }
+  empty.style.display = 'none';
+  document.getElementById('btnSaveConvGoldens').style.display = 'inline-block';
+  container.innerHTML = convGoldens.map((c, i) => {
+    const turnsHtml = (c.turns || []).map((t, ti) => {
+      return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+        <span style="font-size:11px;color:var(--text-muted);min-width:20px;">${ti+1}.</span>
+        <input class="golden-input" value="${escAttr(t.content || '')}" onchange="updateConvTurn(${i},${ti},this.value)" placeholder="User message..." style="flex:1;">
+        <button class="golden-remove" style="position:static;width:20px;height:20px;font-size:11px;" onclick="removeConvTurn(${i},${ti})">&times;</button>
+      </div>`;
+    }).join('');
+    const criteria = (c.eval_criteria || []).join(', ');
+    return `<div class="golden-item">
+      <button class="golden-remove" onclick="removeConvGolden(${i})">&times;</button>
+      <div class="golden-field"><div class="golden-label">Scenario Name</div>
+      <input class="golden-input" value="${escAttr(c.scenario || '')}" onchange="convGoldens[${i}].scenario=this.value" placeholder="e.g. User objects mid-pitch"></div>
+      <div class="golden-field"><div class="golden-label">Eval Criteria</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" ${c.eval_criteria?.includes('flow_correctness')?'checked':''} onchange="toggleConvCriteria(${i},'flow_correctness',this.checked)"> Flow</label>
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" ${c.eval_criteria?.includes('language')?'checked':''} onchange="toggleConvCriteria(${i},'language',this.checked)"> Language</label>
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" ${c.eval_criteria?.includes('edge_case')?'checked':''} onchange="toggleConvCriteria(${i},'edge_case',this.checked)"> Edge Cases</label>
+      </div></div>
+      <div class="golden-field"><div class="golden-label">User Turns (sequential messages)</div>
+      ${turnsHtml}
+      <button class="btn btn-sm" onclick="addConvTurn(${i})" style="margin-top:4px;">+ Add Turn</button>
+      </div>
+    </div>`;
+  }).join('');
+  updateButtonState();
+}
+
+function addConvGolden() {
+  convGoldens.push({ scenario: '', eval_criteria: ['flow_correctness', 'language', 'edge_case'], turns: [{ role: 'user', content: '' }] });
+  renderConvGoldens();
+  const items = document.querySelectorAll('#convGoldensContainer .golden-item');
+  const last = items[items.length - 1];
+  last.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function removeConvGolden(i) { convGoldens.splice(i, 1); renderConvGoldens(); }
+function addConvTurn(i) { convGoldens[i].turns.push({ role: 'user', content: '' }); renderConvGoldens(); }
+function removeConvTurn(i, ti) { convGoldens[i].turns.splice(ti, 1); renderConvGoldens(); }
+function updateConvTurn(i, ti, value) { convGoldens[i].turns[ti].content = value; }
+function toggleConvCriteria(i, criterion, checked) {
+  if (!convGoldens[i].eval_criteria) convGoldens[i].eval_criteria = [];
+  if (checked && !convGoldens[i].eval_criteria.includes(criterion)) convGoldens[i].eval_criteria.push(criterion);
+  if (!checked) convGoldens[i].eval_criteria = convGoldens[i].eval_criteria.filter(c => c !== criterion);
+}
+function saveConvGoldens() {
+  const clean = convGoldens.filter(c => c.scenario && c.turns.some(t => t.content.trim())).map(c => ({
+    scenario: c.scenario,
+    eval_criteria: c.eval_criteria || [],
+    turns: c.turns.filter(t => t.content.trim()).map(t => ({ role: 'user', content: t.content }))
+  }));
+  fetch('/api/conv_goldens', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(clean) })
+  .then(r => r.json()).then(data => { if (data.success) { convGoldens = clean; renderConvGoldens(); showQuickStatus('Conversation scenarios saved!'); } });
+}
+
 // Optimizer Config
 function saveOptConfig() {
   const data = {
@@ -487,7 +589,7 @@ function runAction(action) {
   logEl.classList.add('visible');
   const startTime = Date.now();
 
-  const labels = { test_prompts: 'Evaluating prompts', test_tools: 'Evaluating tools', optimize: 'Optimizing prompt' };
+  const labels = { test_prompts: 'Evaluating prompts', test_tools: 'Evaluating tools', test_conversation: 'Testing conversation flow', optimize: 'Optimizing prompt' };
   status.innerHTML = '<span class="spinner"></span>' + (labels[action] || 'Running') + '...';
 
   const timerInterval = setInterval(() => {
@@ -522,7 +624,8 @@ function runAction(action) {
 }
 
 // Results
-function loadResults() { fetch('/api/results').then(r => r.json()).then(data => render(data.reverse())).catch(() => render([])); }
+let _allRuns = [];
+function loadResults() { fetch('/api/results').then(r => r.json()).then(data => { _allRuns = data.reverse(); render(_allRuns); }).catch(() => { _allRuns = []; render([]); }); }
 loadResults();
 
 function render(runs) {
@@ -545,6 +648,7 @@ function renderRun(run) {
   const duration = run.duration_seconds ? run.duration_seconds + 's' : '';
   let badge = '';
   if (run.type === 'optimization') badge = '<span class="badge badge-opt">Optimized</span>';
+  else if (run.type === 'conversation_evaluation') badge = '<span class="badge badge-tools">Conversation</span>';
   else if (run.type === 'tool_evaluation') badge = '<span class="badge badge-tools">Tools</span>';
   else if (run.tests && run.tests.every(t => t.passed)) badge = '<span class="badge badge-pass">Passed</span>';
   else { const f = run.tests ? run.tests.filter(t => !t.passed).length : 0; badge = '<span class="badge badge-fail">' + f + ' Failed</span>'; }
@@ -562,11 +666,14 @@ function renderRun(run) {
     if (failed) details += '<span class="summary-item summary-fail">&#10007; ' + failed + ' failed</span>';
     details += '<span class="summary-item summary-total">' + allTests.length + ' total</span><span class="summary-item summary-score">avg ' + avg + '</span>';
     if (duration) details += '<span class="summary-item summary-time">' + duration + '</span>';
+    details += '<button class="btn btn-sm btn-accent" style="margin-left:auto;" onclick="openResultsModal(' + _allRuns.indexOf(run) + ')">View Results</button>';
     details += '</div>';
   }
 
   details += '<div class="detail-section"><div class="detail-title">Prompt</div><div class="prompt-box">' + escHtml(run.system_prompt || '(empty)') + '</div></div>';
-  if (run.optimized_prompt) details += '<div class="detail-section"><div class="detail-title">Optimized Prompt</div><div class="prompt-box">' + escHtml(run.optimized_prompt) + '</div></div>';
+  if (run.optimized_prompt) {
+    details += '<div class="detail-section"><div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;"><div class="detail-title" style="margin:0;">Optimized Prompt</div><button class="btn btn-sm btn-accent" onclick="openDiffModal(' + _allRuns.indexOf(run) + ')">View Diff</button></div><div class="prompt-box">' + escHtml(run.optimized_prompt) + '</div></div>';
+  }
 
   const hasTabs = hasPromptTests && hasToolTests;
   if (hasTabs) details += '<div class="tab-row"><div class="tab active" data-tab="prompt">Prompt Tests</div><div class="tab" data-tab="tools">Tool Tests</div></div>';
@@ -601,6 +708,137 @@ function renderTestTable(tests) {
 function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function escAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+// Diff Modal
+function openDiffModal(idx) {
+  const run = _allRuns[idx];
+  if (!run || !run.optimized_prompt) return;
+  const modal = document.getElementById('resultsModal');
+  const body = document.getElementById('resultsModalBody');
+  const original = run.system_prompt || '';
+  const optimized = run.optimized_prompt || '';
+
+  const diff = computeDiff(original, optimized);
+
+  let html = '<div style="margin-bottom:20px;font-size:13px;color:var(--text-muted);">Showing differences between original and optimized prompt. <span style="color:var(--error);background:var(--error-dim);padding:2px 6px;border-radius:3px;">Removed</span> <span style="color:var(--success);background:var(--success-dim);padding:2px 6px;border-radius:3px;">Added</span></div>';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">';
+  html += '<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:8px;font-weight:500;">Original</div><div class="prompt-box" style="max-height:none;min-height:200px;">' + diff.originalHtml + '</div></div>';
+  html += '<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:8px;font-weight:500;">Optimized</div><div class="prompt-box" style="max-height:none;min-height:200px;">' + diff.optimizedHtml + '</div></div>';
+  html += '</div>';
+
+  // Unified diff below
+  html += '<div style="margin-top:24px;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:8px;font-weight:500;">Unified Changes</div>';
+  html += '<div class="prompt-box" style="max-height:400px;">' + diff.unifiedHtml + '</div></div>';
+
+  body.innerHTML = html;
+  document.getElementById('resultsModal').querySelector('.modal-title').textContent = 'Prompt Diff';
+  modal.classList.add('visible');
+}
+
+function computeDiff(a, b) {
+  const aLines = a.split('\\n');
+  const bLines = b.split('\\n');
+  let originalHtml = '';
+  let optimizedHtml = '';
+  let unifiedHtml = '';
+  const maxLen = Math.max(aLines.length, bLines.length);
+
+  // Simple line-by-line diff
+  const aSet = new Set(aLines);
+  const bSet = new Set(bLines);
+
+  aLines.forEach(line => {
+    if (!bSet.has(line)) {
+      originalHtml += '<div style="background:var(--error-dim);padding:1px 4px;border-radius:2px;margin:1px 0;">' + escHtml(line || ' ') + '</div>';
+      unifiedHtml += '<div style="color:var(--error);">- ' + escHtml(line) + '</div>';
+    } else {
+      originalHtml += '<div>' + escHtml(line || ' ') + '</div>';
+    }
+  });
+
+  bLines.forEach(line => {
+    if (!aSet.has(line)) {
+      optimizedHtml += '<div style="background:var(--success-dim);padding:1px 4px;border-radius:2px;margin:1px 0;">' + escHtml(line || ' ') + '</div>';
+      unifiedHtml += '<div style="color:var(--success);">+ ' + escHtml(line) + '</div>';
+    } else {
+      optimizedHtml += '<div>' + escHtml(line || ' ') + '</div>';
+      unifiedHtml += '<div style="color:var(--text-muted);">  ' + escHtml(line) + '</div>';
+    }
+  });
+
+  return { originalHtml, optimizedHtml, unifiedHtml };
+}
+
+// Results Modal
+function openResultsModal(idx) {
+  const run = _allRuns[idx];
+  if (!run) return;
+  const modal = document.getElementById('resultsModal');
+  const body = document.getElementById('resultsModalBody');
+  const allTests = (run.tests || []).concat(run.tool_tests || []);
+  const passed = allTests.filter(t => t.passed);
+  const failed = allTests.filter(t => !t.passed);
+
+  let html = '';
+
+  // Header summary
+  html += '<div style="display:flex;gap:20px;align-items:center;margin-bottom:24px;flex-wrap:wrap;">';
+  html += '<div style="font-size:28px;font-weight:700;color:var(--text-primary);">' + passed.length + '/' + allTests.length + '</div>';
+  html += '<div style="font-size:13px;color:var(--text-muted);">tests passed</div>';
+  const avg = allTests.length ? (allTests.reduce((s,t) => s + (t.score||0), 0) / allTests.length).toFixed(2) : '0';
+  html += '<div style="margin-left:auto;font-family:var(--mono);font-size:14px;color:var(--accent);">avg score: ' + avg + '</div>';
+  if (run.duration_seconds) html += '<div style="font-family:var(--mono);font-size:13px;color:var(--text-muted);">' + run.duration_seconds + 's</div>';
+  html += '</div>';
+
+  // Failed tests section
+  if (failed.length) {
+    html += '<div style="margin-bottom:28px;">';
+    html += '<div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--error);margin-bottom:12px;font-weight:600;">Failed Tests (' + failed.length + ')</div>';
+    html += '<table class="test-table" style="margin-bottom:0;">';
+    html += '<thead><tr><th>Input</th><th>Metric</th><th>Score</th><th>Reason</th></tr></thead><tbody>';
+    failed.forEach(t => {
+      html += '<tr style="background:var(--error-dim);">';
+      html += '<td style="max-width:250px;white-space:normal;">' + escHtml(t.input) + '</td>';
+      html += '<td>' + escHtml(t.metric) + '</td>';
+      html += '<td class="score score-fail">' + (t.score != null ? t.score.toFixed(2) : '-') + '</td>';
+      html += '<td style="max-width:350px;white-space:normal;font-size:11px;color:var(--text-muted);">' + escHtml(t.reason || 'No reason provided') + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+
+  // Passed tests section
+  if (passed.length) {
+    html += '<div style="margin-bottom:28px;">';
+    html += '<div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--success);margin-bottom:12px;font-weight:600;">Passed Tests (' + passed.length + ')</div>';
+    html += '<table class="test-table" style="margin-bottom:0;">';
+    html += '<thead><tr><th>Input</th><th>Metric</th><th>Score</th><th>Reason</th></tr></thead><tbody>';
+    passed.forEach(t => {
+      html += '<tr>';
+      html += '<td style="max-width:250px;white-space:normal;">' + escHtml(t.input) + '</td>';
+      html += '<td>' + escHtml(t.metric) + '</td>';
+      html += '<td class="score score-pass">' + (t.score != null ? t.score.toFixed(2) : '-') + '</td>';
+      html += '<td style="max-width:350px;white-space:normal;font-size:11px;color:var(--text-muted);">' + escHtml(t.reason || '-') + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+
+  // Improvements section
+  if (failed.length) {
+    html += '<div>';
+    html += '<div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:12px;font-weight:600;">Suggested Improvements</div>';
+    failed.forEach(t => {
+      html += '<div class="improvement" style="margin-bottom:10px;"><strong>' + escHtml(t.metric) + '</strong> on "' + escHtml(t.input.substring(0,60)) + '"<br><span style="color:var(--text-secondary);">' + escHtml(t.reason || 'No suggestion available') + '</span></div>';
+    });
+    html += '</div>';
+  }
+
+  body.innerHTML = html;
+  modal.classList.add('visible');
+}
+function closeResultsModal() { document.getElementById('resultsModal').classList.remove('visible'); }
+
 // Modal
 let modalTarget = null;
 function openModal(el) {
@@ -616,7 +854,7 @@ function saveModal() {
   if (modalTarget) { modalTarget.value = document.getElementById('modalTextarea').value; modalTarget.dispatchEvent(new Event('change')); }
   closeModal();
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeResultsModal(); } });
 document.getElementById('promptInput').addEventListener('dblclick', function() { openModal(this); });
 </script>
 
@@ -631,6 +869,16 @@ document.getElementById('promptInput').addEventListener('dblclick', function() {
       <button class="btn btn-sm" onclick="closeModal()">Cancel</button>
       <button class="btn btn-sm btn-gold" onclick="saveModal()">Save</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="resultsModal" onclick="if(event.target===this)closeResultsModal()">
+  <div class="modal-box" style="max-width:960px;height:85vh;">
+    <div class="modal-header">
+      <span class="modal-title">Test Results</span>
+      <button class="modal-close" onclick="closeResultsModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="resultsModalBody" style="padding:28px;"></div>
   </div>
 </div>
 
@@ -678,12 +926,22 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     self.wfile.write(f.read().encode())
             else:
                 self.wfile.write(b"[]")
+        elif self.path == "/api/conv_goldens":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            if os.path.exists("conversation_goldens.json"):
+                with open("conversation_goldens.json") as f:
+                    self.wfile.write(f.read().encode())
+            else:
+                self.wfile.write(b"[]")
         elif self.path == "/api/log":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
+            clean_log = _ansi_re.sub('', _run_state.get("log", ""))
             self.wfile.write(json.dumps({
-                "log": _run_state.get("log", ""),
+                "log": clean_log,
                 "done": _run_state.get("done", False),
                 "success": _run_state.get("success", False),
                 "message": _run_state.get("message", ""),
@@ -775,6 +1033,8 @@ Return ONLY the JSON array, no other text."""
                         cmd = ["deepeval", "test", "run", "test_prompts.py", "--", "--tb=short"]
                     elif action == "test_tools":
                         cmd = ["deepeval", "test", "run", "test_tools.py", "--", "--tb=short"]
+                    elif action == "test_conversation":
+                        cmd = ["deepeval", "test", "run", "test_conversation.py", "--", "--tb=short"]
                     elif action == "optimize":
                         cmd = ["python3", "-u", "optimize_prompt.py"]
                     else:
@@ -788,10 +1048,19 @@ Return ONLY the JSON array, no other text."""
                     env["PYTHONUNBUFFERED"] = "1"
                     proc = subprocess.Popen(
                         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                        text=True, bufsize=1, env=env
+                        bufsize=0, env=env
                     )
-                    for line in proc.stdout:
-                        _run_state["log"] += line
+                    buf = b""
+                    while True:
+                        chunk = proc.stdout.read(256)
+                        if not chunk:
+                            break
+                        buf += chunk
+                        try:
+                            text = buf.decode("utf-8", errors="replace")
+                            _run_state["log"] = text
+                        except:
+                            pass
                     proc.wait()
 
                     success = proc.returncode == 0
@@ -799,6 +1068,8 @@ Return ONLY the JSON array, no other text."""
                         msg = "All tests passed!" if success else "Some tests failed. Check results below."
                     elif action == "test_tools":
                         msg = "All tool tests passed!" if success else "Some tool tests failed. Check results below."
+                    elif action == "test_conversation":
+                        msg = "All conversation tests passed!" if success else "Some conversation tests failed. Check results below."
                     elif action == "optimize":
                         msg = "Optimization complete! Check the optimized prompt below." if success else "Optimization failed."
 

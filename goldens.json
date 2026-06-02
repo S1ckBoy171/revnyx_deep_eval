@@ -1,18 +1,82 @@
 [
   {
-    "input": "Explain the concept of Redis persistence and relate it to saving work in a word processor.",
-    "expected_output": "Redis persistence is similar to the 'autosave' feature in a word processor, where your work is saved automatically at intervals to avoid data loss. When you are writing a document, you want to ensure that even if the power goes out, your latest changes are not lost. Redis offers two main ways to persist data: RDB (snapshotting) and AOF (append-only file). RDB is like saving your document every few minutes, creating a snapshot of your work at that moment. AOF, on the other hand, is like saving every keystroke, ensuring that every change you make is recorded. This means that if Redis were to crash, you could recover your data to its last saved state, just like reopening your word processor to find your latest unsaved work restored.",
+    "input": "\u092e\u0948\u0902\u0928\u0947 \u0905\u092d\u0940 \u0924\u0915 ITR file \u0928\u0939\u0940\u0902 \u0915\u093f\u092f\u093e \u0939\u0948, \u0915\u094d\u092f\u093e \u092f\u0939 \u0938\u0939\u0940 \u0938\u092e\u092f \u0939\u0948?",
+    "expected_output": "\u092c\u093f\u0932\u094d\u0915\u0941\u0932, \u0905\u092d\u0940 \u0938\u0939\u0940 \u0938\u092e\u092f \u0939\u0948! \u0907\u0938 \u0938\u093e\u0932 \u0915\u0947 \u0932\u093f\u090f ITR-one \u0914\u0930 ITR-four forms live \u0939\u094b \u0917\u090f \u0939\u0948\u0902, \u0914\u0930 \u0939\u092e early bird offer \u092e\u0947\u0902 sixty percent off \u092d\u0940 \u0926\u0947 \u0930\u0939\u0947 \u0939\u0948\u0902\u0964 \u0915\u094d\u092f\u093e \u092e\u0948\u0902 \u0906\u092a\u0915\u094b offer explain \u0915\u0930 \u0926\u0942\u0901?",
     "context": [
-      "Redis can persist data in different ways, allowing for recovery in case of failure.",
-      "Autosave features in applications are designed to prevent data loss during unexpected events."
+      "ITR forms are live.",
+      "User showed interest in ClearTax Assisted ITR Filing."
     ]
   },
   {
-    "input": "Can you explain quantum entanglement using a metaphor from cooking?",
-    "expected_output": "Sure! Imagine you have two perfectly synchronized cooking timers set to the same time. When you start one timer, the other one starts at the exact same moment, no matter how far apart they are in your kitchen. In quantum entanglement, two particles become linked in such a way that the state of one instantly influences the state of the other, regardless of the distance between them. It\u2019s like your cooking timers always knowing what the other is doing, even if one is in the oven and the other is in the pantry!",
+    "input": "\u092e\u0941\u091d\u0947 \u092a\u0939\u0932\u0947 \u0938\u0947 \u090f\u0915 CA \u0939\u0948, \u0915\u094d\u092f\u093e \u092e\u0941\u091d\u0947 ClearTax \u0915\u0940 \u091c\u0930\u0942\u0930\u0924 \u0939\u0948?",
+    "expected_output": "\u0939\u093e\u0901, \u092c\u093f\u0932\u094d\u0915\u0941\u0932 \u2014 CA \u0915\u0947 \u0938\u093e\u0925 filing \u0915\u0930\u0928\u093e great \u0939\u0948\u0964 ClearTax \u092e\u0947\u0902 CA video call \u092a\u0930 \u0939\u094b\u0924\u0947 \u0939\u0948\u0902, \u0924\u094b \u0906\u092a \u0916\u0941\u0926 \u0938\u092c \u0926\u0947\u0916 \u0938\u0915\u0924\u0947 \u0939\u0948\u0902\u0964 \u0915\u094d\u092f\u093e \u090f\u0915 \u092c\u093e\u0930 try \u0915\u0930\u0928\u093e \u0920\u0940\u0915 \u0930\u0939\u0947\u0917\u093e?",
     "context": [
-      "Quantum entanglement is a phenomenon in quantum physics where particles become interconnected and the state of one particle instantly affects the state of another, regardless of distance.",
-      "Analogies from cooking, such as synchronized timers, can simplify complex scientific concepts by relating them to everyday experiences."
+      "User already has a personal CA.",
+      "ClearTax offers a transparent process."
+    ]
+  },
+  {
+    "input": "\u092e\u0941\u091d\u0947 \u0905\u092d\u0940 Call \u092e\u0924 \u0915\u0930\u094b, \u092e\u0948\u0902 busy \u0939\u0942\u0901\u0964",
+    "expected_output": "\u0913\u0939, sorry \u2014 \u0915\u094d\u092f\u093e \u0906\u092a \u092c\u0924\u093e \u0938\u0915\u0924\u0947 \u0939\u0948\u0902 \u0915\u093f \u0906\u091c \u0915\u093f\u0938 time \u092a\u0930 connect \u0915\u0930\u0928\u093e \u0938\u0939\u0940 \u0930\u0939\u0947\u0917\u093e?",
+    "context": [
+      "User is busy.",
+      "Need to schedule a callback."
+    ]
+  },
+  {
+    "input": "\u092e\u0948\u0902\u0928\u0947 \u092a\u093f\u091b\u0932\u0947 \u0938\u093e\u0932 filing \u0915\u0940 \u0925\u0940 \u0932\u0947\u0915\u093f\u0928 \u092e\u0941\u091d\u0947 satisfaction \u0928\u0939\u0940\u0902 \u092e\u093f\u0932\u0940\u0964",
+    "expected_output": "\u0939\u093e\u0901, \u0938\u092e\u091d \u0917\u0908 \u2014 \u0914\u0930 actually \u092f\u0939\u0940 \u0935\u091c\u0939 \u0939\u0948 \u0915\u093f \u092e\u0948\u0902 call \u0915\u0930 \u0930\u0939\u0940 \u0939\u0942\u0901\u0964 ClearTax \u0928\u0947 process \u0915\u094b \u0915\u093e\u092b\u0940 improve \u0915\u093f\u092f\u093e \u0939\u0948\u0964 \u0915\u094d\u092f\u093e \u090f\u0915 \u092c\u093e\u0930 try \u0915\u0930\u0928\u093e \u0920\u0940\u0915 \u0930\u0939\u0947\u0917\u093e?",
+    "context": [
+      "User had a bad experience with filing.",
+      "ClearTax has improved its process."
+    ]
+  },
+  {
+    "input": "\u092e\u0947\u0930\u0940 salary \u092a\u093e\u0901\u091a \u0932\u093e\u0916 \u0938\u0947 \u0915\u092e \u0939\u0948, \u0915\u094d\u092f\u093e \u092e\u0941\u091d\u0947 filing \u0915\u0930\u0928\u0940 \u091a\u093e\u0939\u093f\u090f?",
+    "expected_output": "\u0939\u093e\u0901, \u092c\u093f\u0932\u094d\u0915\u0941\u0932 \u0938\u092e\u091d \u0917\u0908 \u2014 Five lakh \u0938\u0947 \u0915\u092e annual salary \u092a\u0930 generally ITR filing \u0915\u0940 \u091c\u093c\u0930\u0942\u0930\u0924 \u0928\u0939\u0940\u0902 \u0939\u094b\u0924\u0940\u0964 \u0915\u094b\u0908 \u092c\u093e\u0924 \u0928\u0939\u0940\u0902 \u2014 \u0906\u092a\u0915\u093e time \u0926\u0947\u0928\u0947 \u0915\u0947 \u0932\u093f\u090f \u092c\u0939\u0941\u0924 \u0936\u0941\u0915\u094d\u0930\u093f\u092f\u093e\u0964",
+    "context": [
+      "User's salary is below the threshold.",
+      "Filing is not mandatory for low income."
+    ]
+  },
+  {
+    "input": "\u0915\u094d\u092f\u093e ClearTax \u092a\u0930 filing \u0936\u0941\u0930\u0942 \u0939\u094b \u0917\u0908 \u0939\u0948?",
+    "expected_output": "\u0939\u093e\u0901, \u0905\u092d\u0940 government portal \u092a\u0930 forms live \u0939\u094b \u0917\u0908 \u0939\u0948\u0902 \u2014 ClearTax \u092a\u0930 \u0939\u092e \u0905\u092d\u0940 early bird users \u0915\u0947 \u0932\u093f\u090f pre-booking \u0932\u0947 \u0930\u0939\u0947 \u0939\u0948\u0902\u0964 \u0915\u094d\u092f\u093e \u092e\u0948\u0902 \u0906\u092a\u0915\u094b details \u092c\u0924\u093e \u0926\u0942\u0901?",
+    "context": [
+      "User is inquiring about filing availability.",
+      "Pre-booking is available."
+    ]
+  },
+  {
+    "input": "\u0915\u094d\u092f\u093e \u0906\u092a \u092e\u0941\u091d\u0947 pricing \u092c\u0924\u093e \u0938\u0915\u0924\u0947 \u0939\u0948\u0902?",
+    "expected_output": "\u0939\u092e\u093e\u0930\u0947 plans roughly two thousand rupees \u0938\u0947 start \u0939\u094b\u0924\u0947 \u0939\u0948\u0902 \u2014 exact price \u0906\u092a\u0915\u0940 income profile \u0915\u0947 \u0939\u093f\u0938\u093e\u092c \u0938\u0947 \u0939\u094b\u0924\u0940 \u0939\u0948\u0964 \u0915\u094d\u092f\u093e \u092e\u0948\u0902 \u090f\u0915-\u0926\u094b \u0938\u0935\u093e\u0932 \u092a\u0942\u091b \u0932\u0942\u0901?",
+    "context": [
+      "User is asking about pricing.",
+      "Need to qualify before providing exact pricing."
+    ]
+  },
+  {
+    "input": "\u092e\u0948\u0902\u0928\u0947 \u092a\u0939\u0932\u0947 ClearTax \u0915\u093e \u0907\u0938\u094d\u0924\u0947\u092e\u093e\u0932 \u0915\u093f\u092f\u093e \u0925\u093e, \u0914\u0930 prices \u092c\u0939\u0941\u0924 \u091c\u093c\u094d\u092f\u093e\u0926\u093e \u0925\u0947\u0964",
+    "expected_output": "\u0939\u093e\u0901, \u0938\u092e\u091d \u0917\u0908 \u2014 actually \u0907\u0938\u0940\u0932\u093f\u090f \u0907\u0938 \u092c\u093e\u0930 special offer \u0939\u0948, \u0924\u094b \u091c\u094b \u092a\u0939\u0932\u0947 full price \u092a\u0930 \u0925\u093e \u0935\u094b \u0905\u092c \u0915\u093e\u092b\u0940 \u0915\u092e \u092e\u0947\u0902 \u092e\u093f\u0932 \u0930\u0939\u093e \u0939\u0948\u0964 \u092f\u0939 \u0938\u0939\u0940 time \u0939\u0948\u0964",
+    "context": [
+      "User is concerned about past pricing.",
+      "Current offer is a special discount."
+    ]
+  },
+  {
+    "input": "\u092e\u0941\u091d\u0947 tax notice \u092e\u093f\u0932\u093e \u0939\u0948, \u092e\u0941\u091d\u0947 \u0915\u094d\u092f\u093e \u0915\u0930\u0928\u093e \u091a\u093e\u0939\u093f\u090f?",
+    "expected_output": "\u0913\u0939, \u0938\u092e\u091d \u0917\u0908 \u2014 tax notice \u092e\u093f\u0932\u0928\u093e stressful \u0939\u094b \u0938\u0915\u0924\u093e \u0939\u0948\u0964 ClearTax \u092e\u0947\u0902 \u0939\u092e \u0906\u092a\u0915\u094b notice support \u0926\u0947\u0924\u0947 \u0939\u0948\u0902, \u0924\u094b \u0915\u094d\u092f\u093e \u092e\u0948\u0902 \u0906\u092a\u0915\u094b expert \u0938\u0947 connect \u0915\u0930\u0935\u093e \u0926\u0942\u0901?",
+    "context": [
+      "User has received a tax notice.",
+      "Expert support is available for handling notices."
+    ]
+  },
+  {
+    "input": "\u092e\u0948\u0902\u0928\u0947 \u0905\u092a\u0928\u0940 filing \u0905\u092a\u0928\u0947 \u0926\u092e \u092a\u0930 \u0915\u0940 \u0925\u0940, \u0932\u0947\u0915\u093f\u0928 \u092e\u0941\u091d\u0947 \u0915\u094b\u0908 deduction miss \u0939\u094b \u0917\u0908 \u0925\u0940\u0964",
+    "expected_output": "\u092c\u093f\u0932\u094d\u0915\u0941\u0932, self-filing \u092e\u0947\u0902 \u0915\u0908 \u092c\u093e\u0930 deductions miss \u0939\u094b \u091c\u093e\u0924\u0940 \u0939\u0948\u0902\u0964 ClearTax \u092e\u0947\u0902 expert check \u0915\u0930\u0924\u093e \u0939\u0948 \u0915\u093f \u0915\u0941\u091b miss \u0928 \u0939\u094b\u0964 \u0915\u094d\u092f\u093e \u092e\u0948\u0902 \u0906\u092a\u0915\u094b details \u092c\u0924\u093e \u0926\u0942\u0901?",
+    "context": [
+      "User had issues with self-filing.",
+      "ClearTax provides expert support to prevent misses."
     ]
   }
 ]
