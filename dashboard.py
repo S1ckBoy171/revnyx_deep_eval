@@ -203,6 +203,20 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
 .detail-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 8px; font-weight: 500; }
 .prompt-box { background: var(--bg-deep); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 14px 18px; font-family: var(--mono); font-size: 12px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; max-height: 180px; overflow-y: auto; color: var(--text-secondary); }
 
+/* VS Code style diff */
+.diff-container { display: grid; grid-template-columns: 1fr 1px 1fr; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; min-width: 0; }
+.diff-pane { overflow-y: auto; max-height: 60vh; background: var(--bg-deep); }
+.diff-pane-header { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); padding: 10px 14px; background: var(--bg-elevated); border-bottom: 1px solid var(--border-subtle); font-weight: 500; position: sticky; top: 0; z-index: 1; }
+.diff-line { display: flex; min-height: 22px; font-family: var(--mono); font-size: 12px; line-height: 22px; }
+.diff-ln { min-width: 40px; text-align: right; padding-right: 12px; color: var(--text-muted); opacity: 0.5; user-select: none; flex-shrink: 0; }
+.diff-text { flex: 1; padding: 0 8px; white-space: pre-wrap; word-break: break-word; }
+.diff-del { background: rgba(239,68,68,0.13); }
+.diff-del .diff-text { color: var(--error); }
+.diff-add { background: rgba(34,197,94,0.13); }
+.diff-add .diff-text { color: var(--success); }
+.diff-empty { background: var(--bg-surface); opacity: 0.4; }
+.diff-divider { width: 1px; background: var(--border); }
+
 /* Test Table */
 .test-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .test-table th { text-align: left; padding: 10px 14px; background: var(--bg-deep); color: var(--text-muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -259,7 +273,8 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
     <button class="btn btn-success" id="btnTest" onclick="runAction('test_prompts')" disabled>Test Prompt</button>
     <button class="btn btn-blue" id="btnTools" onclick="runAction('test_tools')" disabled>Test Tools</button>
     <button class="btn btn-accent" id="btnConv" onclick="runAction('test_conversation')" disabled>Test Conversation</button>
-    <button class="btn btn-purple" id="btnOptimize" onclick="runAction('optimize')" disabled>Optimize</button>
+    <button class="btn btn-purple" id="btnOptimize" onclick="runAction('optimize')" disabled>Optimize Prompt</button>
+    <button class="btn btn-accent" id="btnOptConv" onclick="runAction('optimize_conversation')" disabled>Optimize Conversation</button>
     <button class="btn btn-sm" onclick="document.getElementById('optSettings').classList.toggle('visible')" style="margin-left:auto;opacity:0.7;">&#9881; Settings</button>
   </div>
   <div class="ai-section" id="optSettings">
@@ -421,10 +436,12 @@ function updateButtonState() {
   const hasGoldens = goldens.length > 0;
   const hasToolGoldens = toolGoldens.length > 0;
   const hasConvGoldens = convGoldens.length > 0;
+  const hasEnoughConv = convGoldens.length >= 2;
   document.getElementById('btnTest').disabled = !hasGoldens || running;
   document.getElementById('btnTools').disabled = !hasToolGoldens || running;
   document.getElementById('btnConv').disabled = !hasConvGoldens || running;
   document.getElementById('btnOptimize').disabled = !hasGoldens || running;
+  document.getElementById('btnOptConv').disabled = !hasEnoughConv || running;
   document.getElementById('disabledNotice').style.display = hasGoldens ? 'none' : 'block';
 }
 
@@ -713,6 +730,7 @@ function generateGoldens() {
 function runAction(action) {
   if (running) return;
   if (action === 'test_tools') { if (!toolGoldens.filter(g => g.input.trim()).length) return; }
+  else if (action === 'test_conversation' || action === 'optimize_conversation') { if (convGoldens.length < (action === 'optimize_conversation' ? 2 : 1)) return; }
   else { if (!goldens.filter(g => g.input.trim()).length) return; }
 
   running = true;
@@ -725,7 +743,7 @@ function runAction(action) {
   logEl.classList.add('visible');
   const startTime = Date.now();
 
-  const labels = { test_prompts: 'Evaluating prompts', test_tools: 'Evaluating tools', test_conversation: 'Testing conversation flow', optimize: 'Optimizing prompt' };
+  const labels = { test_prompts: 'Evaluating prompts', test_tools: 'Evaluating tools', test_conversation: 'Testing conversation flow', optimize: 'Optimizing prompt', optimize_conversation: 'Optimizing for conversation flow' };
   status.innerHTML = '<span class="spinner"></span>' + (labels[action] || 'Running') + '...';
 
   const timerInterval = setInterval(() => {
@@ -806,9 +824,9 @@ function renderRun(run) {
     details += '</div>';
   }
 
-  details += '<div class="detail-section"><div class="detail-title">Prompt</div><div class="prompt-box">' + escHtml(run.system_prompt || '(empty)') + '</div></div>';
+  details += '<div class="detail-section"><div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;"><div class="detail-title" style="margin:0;">Prompt</div><button class="btn btn-sm" onclick="copyFromSibling(this)">Copy</button></div><div class="prompt-box">' + escHtml(run.system_prompt || '(empty)') + '</div></div>';
   if (run.optimized_prompt) {
-    details += '<div class="detail-section"><div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;"><div class="detail-title" style="margin:0;">Optimized Prompt</div><button class="btn btn-sm btn-accent" onclick="openDiffModal(' + _allRuns.indexOf(run) + ')">View Diff</button></div><div class="prompt-box">' + escHtml(run.optimized_prompt) + '</div></div>';
+    details += '<div class="detail-section"><div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;"><div class="detail-title" style="margin:0;">Optimized Prompt</div><button class="btn btn-sm btn-accent" onclick="openDiffModal(' + _allRuns.indexOf(run) + ')">View Diff</button><button class="btn btn-sm" onclick="copyFromSibling(this)">Copy</button></div><div class="prompt-box">' + escHtml(run.optimized_prompt) + '</div></div>';
   }
 
   const hasTabs = hasPromptTests && hasToolTests;
@@ -841,6 +859,31 @@ function renderTestTable(tests) {
   return h + '</tbody></table>';
 }
 
+function copyFromSibling(btn) {
+  const box = btn.closest('.detail-section').querySelector('.prompt-box');
+  if (!box) return;
+  navigator.clipboard.writeText(box.textContent).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.style.borderColor = 'var(--success)';
+    btn.style.color = 'var(--success)';
+    setTimeout(() => { btn.textContent = orig; btn.style.borderColor = ''; btn.style.color = ''; }, 1500);
+  });
+}
+
+function copyDiffText(btn, which, idx) {
+  const run = _allRuns[idx];
+  if (!run) return;
+  const text = which === 'optimized' ? run.optimized_prompt : run.system_prompt;
+  navigator.clipboard.writeText(text || '').then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.style.borderColor = 'var(--success)';
+    btn.style.color = 'var(--success)';
+    setTimeout(() => { btn.textContent = orig; btn.style.borderColor = ''; btn.style.color = ''; }, 1500);
+  });
+}
+
 function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function escAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -849,60 +892,112 @@ function openDiffModal(idx) {
   const run = _allRuns[idx];
   if (!run || !run.optimized_prompt) return;
   const modal = document.getElementById('resultsModal');
+  const box = modal.querySelector('.modal-box');
   const body = document.getElementById('resultsModalBody');
   const original = run.system_prompt || '';
   const optimized = run.optimized_prompt || '';
 
   const diff = computeDiff(original, optimized);
 
-  let html = '<div style="margin-bottom:20px;font-size:13px;color:var(--text-muted);">Showing differences between original and optimized prompt. <span style="color:var(--error);background:var(--error-dim);padding:2px 6px;border-radius:3px;">Removed</span> <span style="color:var(--success);background:var(--success-dim);padding:2px 6px;border-radius:3px;">Added</span></div>';
+  let html = '<div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;"><span style="font-size:13px;color:var(--text-muted);">Prompt Diff</span><span style="font-size:11px;color:var(--error);background:var(--error-dim);padding:2px 8px;border-radius:3px;">Removed</span><span style="font-size:11px;color:var(--success);background:var(--success-dim);padding:2px 8px;border-radius:3px;">Added</span></div>';
 
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">';
-  html += '<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:8px;font-weight:500;">Original</div><div class="prompt-box" style="max-height:none;min-height:200px;">' + diff.originalHtml + '</div></div>';
-  html += '<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:8px;font-weight:500;">Optimized</div><div class="prompt-box" style="max-height:none;min-height:200px;">' + diff.optimizedHtml + '</div></div>';
+  // Side-by-side: Original left, Optimized right
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">';
+  html += '<div class="detail-section"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);font-weight:500;">Original</div><button class="btn btn-sm" onclick="copyDiffText(this,&quot;original&quot;,' + idx + ')">Copy</button></div><div class="prompt-box" style="max-height:40vh;min-height:200px;">' + diff.originalHtml + '</div></div>';
+  html += '<div class="detail-section"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);font-weight:500;">Optimized</div><button class="btn btn-sm btn-accent" onclick="copyDiffText(this,&quot;optimized&quot;,' + idx + ')">Copy</button></div><div class="prompt-box" style="max-height:40vh;min-height:200px;">' + diff.optimizedHtml + '</div></div>';
   html += '</div>';
 
   // Unified diff below
-  html += '<div style="margin-top:24px;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:8px;font-weight:500;">Unified Changes</div>';
-  html += '<div class="prompt-box" style="max-height:400px;">' + diff.unifiedHtml + '</div></div>';
+  html += '<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:8px;font-weight:500;">Unified Changes</div>';
+  html += '<div class="prompt-box" style="max-height:35vh;">' + diff.unifiedHtml + '</div></div>';
 
   body.innerHTML = html;
-  document.getElementById('resultsModal').querySelector('.modal-title').textContent = 'Prompt Diff';
+  modal.querySelector('.modal-title').textContent = 'Prompt Diff';
+  box.style.maxWidth = '95vw';
+  box.style.height = '90vh';
   modal.classList.add('visible');
+}
+function closeResultsModal() {
+  const modal = document.getElementById('resultsModal');
+  modal.classList.remove('visible');
+  const box = modal.querySelector('.modal-box');
+  box.style.maxWidth = '';
+  box.style.height = '';
 }
 
 function computeDiff(a, b) {
   const aLines = a.split('\\n');
   const bLines = b.split('\\n');
-  let originalHtml = '';
-  let optimizedHtml = '';
+
+  // DP-based LCS for reliable diff
+  const n = aLines.length, m = bLines.length;
+  // For large files, use a row-optimized DP to find the edit script
+  const prev = new Array(m + 1).fill(0);
+  const curr = new Array(m + 1).fill(0);
+  // Build LCS length table (space-optimized, but we need backtrack so use full matrix for <= 1000 lines)
+  let dp;
+  if (n <= 1000 && m <= 1000) {
+    dp = Array.from({length: n + 1}, () => new Uint16Array(m + 1));
+    for (let i = 1; i <= n; i++) {
+      for (let j = 1; j <= m; j++) {
+        if (aLines[i-1] === bLines[j-1]) dp[i][j] = dp[i-1][j-1] + 1;
+        else dp[i][j] = Math.max(dp[i-1][j], dp[i][j-1]);
+      }
+    }
+  }
+
+  // Backtrack to get diff ops
+  const ops = [];
+  if (dp) {
+    let i = n, j = m;
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && aLines[i-1] === bLines[j-1]) {
+        ops.push({ type: 'same', aLine: aLines[i-1], bLine: bLines[j-1] });
+        i--; j--;
+      } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
+        ops.push({ type: 'add', bLine: bLines[j-1] });
+        j--;
+      } else {
+        ops.push({ type: 'remove', aLine: aLines[i-1] });
+        i--;
+      }
+    }
+    ops.reverse();
+  } else {
+    // Fallback for very large files: simple line-by-line
+    const max = Math.max(n, m);
+    for (let i = 0; i < max; i++) {
+      if (i < n && i < m && aLines[i] === bLines[i]) ops.push({ type: 'same', aLine: aLines[i], bLine: bLines[i] });
+      else { if (i < n) ops.push({ type: 'remove', aLine: aLines[i] }); if (i < m) ops.push({ type: 'add', bLine: bLines[i] }); }
+    }
+  }
+
+  // VS Code style: side-by-side with aligned rows
+  let leftHtml = '';
+  let rightHtml = '';
   let unifiedHtml = '';
-  const maxLen = Math.max(aLines.length, bLines.length);
+  let leftLine = 1, rightLine = 1;
 
-  // Simple line-by-line diff
-  const aSet = new Set(aLines);
-  const bSet = new Set(bLines);
-
-  aLines.forEach(line => {
-    if (!bSet.has(line)) {
-      originalHtml += '<div style="background:var(--error-dim);padding:1px 4px;border-radius:2px;margin:1px 0;">' + escHtml(line || ' ') + '</div>';
-      unifiedHtml += '<div style="color:var(--error);">- ' + escHtml(line) + '</div>';
-    } else {
-      originalHtml += '<div>' + escHtml(line || ' ') + '</div>';
+  ops.forEach(op => {
+    if (op.type === 'same') {
+      leftHtml += '<div class="diff-line"><span class="diff-ln">' + leftLine + '</span><span class="diff-text">' + escHtml(op.aLine || ' ') + '</span></div>';
+      rightHtml += '<div class="diff-line"><span class="diff-ln">' + rightLine + '</span><span class="diff-text">' + escHtml(op.bLine || ' ') + '</span></div>';
+      unifiedHtml += '<div class="diff-line"><span class="diff-text" style="color:var(--text-muted);">  ' + escHtml(op.aLine) + '</span></div>';
+      leftLine++; rightLine++;
+    } else if (op.type === 'remove') {
+      leftHtml += '<div class="diff-line diff-del"><span class="diff-ln">' + leftLine + '</span><span class="diff-text">' + escHtml(op.aLine || ' ') + '</span></div>';
+      rightHtml += '<div class="diff-line diff-empty"><span class="diff-ln"></span><span class="diff-text"></span></div>';
+      unifiedHtml += '<div class="diff-line diff-del"><span class="diff-text">- ' + escHtml(op.aLine) + '</span></div>';
+      leftLine++;
+    } else if (op.type === 'add') {
+      leftHtml += '<div class="diff-line diff-empty"><span class="diff-ln"></span><span class="diff-text"></span></div>';
+      rightHtml += '<div class="diff-line diff-add"><span class="diff-ln">' + rightLine + '</span><span class="diff-text">' + escHtml(op.bLine || ' ') + '</span></div>';
+      unifiedHtml += '<div class="diff-line diff-add"><span class="diff-text">+ ' + escHtml(op.bLine) + '</span></div>';
+      rightLine++;
     }
   });
 
-  bLines.forEach(line => {
-    if (!aSet.has(line)) {
-      optimizedHtml += '<div style="background:var(--success-dim);padding:1px 4px;border-radius:2px;margin:1px 0;">' + escHtml(line || ' ') + '</div>';
-      unifiedHtml += '<div style="color:var(--success);">+ ' + escHtml(line) + '</div>';
-    } else {
-      optimizedHtml += '<div>' + escHtml(line || ' ') + '</div>';
-      unifiedHtml += '<div style="color:var(--text-muted);">  ' + escHtml(line) + '</div>';
-    }
-  });
-
-  return { originalHtml, optimizedHtml, unifiedHtml };
+  return { originalHtml: leftHtml, optimizedHtml: rightHtml, unifiedHtml };
 }
 
 // Results Modal
@@ -995,7 +1090,6 @@ function openResultsModal(idx) {
   body.innerHTML = html;
   modal.classList.add('visible');
 }
-function closeResultsModal() { document.getElementById('resultsModal').classList.remove('visible'); }
 
 // Modal
 let modalTarget = null;
@@ -1286,6 +1380,8 @@ Return ONLY the JSON object, no other text."""
                         cmd = ["deepeval", "test", "run", "test_conversation.py", "--", "--tb=short"]
                     elif action == "optimize":
                         cmd = ["python3", "-u", "optimize_prompt.py"]
+                    elif action == "optimize_conversation":
+                        cmd = ["python3", "-u", "optimize_conversation.py"]
                     else:
                         _run_state["done"] = True
                         _run_state["success"] = False
@@ -1321,6 +1417,8 @@ Return ONLY the JSON object, no other text."""
                         msg = "All conversation tests passed!" if success else "Some conversation tests failed. Check results below."
                     elif action == "optimize":
                         msg = "Optimization complete! Check the optimized prompt below." if success else "Optimization failed."
+                    elif action == "optimize_conversation":
+                        msg = "Conversation optimization complete! Check the optimized prompt below." if success else "Conversation optimization failed."
 
                     _run_state["success"] = success
                     _run_state["message"] = msg
