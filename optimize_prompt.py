@@ -1,9 +1,9 @@
 """
-Prompt optimization script.
+Prompt optimization script (single-turn).
 Run with: python3 optimize_prompt.py
 
 Uses DeepEval's PromptOptimizer to improve your system prompt
-based on the goldens dataset and a chosen metric/algorithm.
+based on single-turn goldens (goldens.json) and selected metric.
 """
 
 import json
@@ -46,6 +46,11 @@ goldens = [
     for g in raw_goldens
 ]
 
+if len(goldens) < 2:
+    print(f"ERROR: GEPA requires at least 2 goldens, but only {len(goldens)} found.")
+    print("Add more goldens from the dashboard.")
+    sys.exit(1)
+
 # Select metric based on config
 metric_name = opt_config.get("metric", "AnswerRelevancy")
 threshold = opt_config.get("threshold", 0.7)
@@ -80,7 +85,6 @@ else:
     algorithm = GEPA(iterations=iterations)
 
 _call_count = 0
-_total_goldens = len(goldens)
 
 
 def model_callback(prompt: Prompt, golden: Golden) -> str:
@@ -98,7 +102,7 @@ def model_callback(prompt: Prompt, golden: Golden) -> str:
 if __name__ == "__main__":
     start_time = time.time()
 
-    print(f"=== Prompt Optimization ===")
+    print(f"=== Prompt Optimization (Single-Turn) ===")
     print(f"Model: {config['model']}")
     print(f"Algorithm: {algo_name}")
     print(f"Iterations: {iterations}")
