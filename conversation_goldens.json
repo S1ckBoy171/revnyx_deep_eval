@@ -1,25 +1,68 @@
 [
   {
-    "scenario": "Happy path - full call flow",
-    "eval_criteria": ["flow_correctness", "language", "edge_case"],
+    "scenario": "test-call",
+    "eval_criteria": [
+      "flow_correctness",
+      "language",
+      "edge_case"
+    ],
     "turns": [
-      {"role": "user", "content": "Hello?"},
-      {"role": "user", "content": "Haan boliye"},
-      {"role": "user", "content": "Haan maine dekha tha ClearTax pe"},
-      {"role": "user", "content": "Meri salary 12 lakh hai annually"},
-      {"role": "user", "content": "Ok, kitna cost hoga?"},
-      {"role": "user", "content": "Theek hai, let me think about it"}
-    ]
-  },
-  {
-    "scenario": "User objects mid-pitch",
-    "eval_criteria": ["flow_correctness", "language", "edge_case"],
-    "turns": [
-      {"role": "user", "content": "Hello?"},
-      {"role": "user", "content": "Haan boliye"},
-      {"role": "user", "content": "Mujhe interest nahi hai, mera CA kar deta hai"},
-      {"role": "user", "content": "Nahi nahi, mujhe nahi chahiye"},
-      {"role": "user", "content": "Ok bye"}
+      {
+        "role": "user",
+        "content": "please"
+      },
+      {
+        "role": "user",
+        "content": "yes how can I change my pan card"
+      },
+      {
+        "role": "user",
+        "content": "ma'am please help martira"
+      },
+      {
+        "role": "user",
+        "content": "okay calls connect"
+      },
+      {
+        "role": "user",
+        "content": "okay try time okay"
+      },
+      {
+        "role": "user",
+        "content": "please answer martin"
+      },
+      {
+        "role": "user",
+        "content": "cannot really replay my data"
+      },
+      {
+        "role": "user",
+        "content": "canada language"
+      },
+      {
+        "role": "user",
+        "content": "okay"
+      },
+      {
+        "role": "user",
+        "content": "callback"
+      },
+      {
+        "role": "user",
+        "content": "tomorrow"
+      },
+      {
+        "role": "user",
+        "content": "9 o'clock"
+      },
+      {
+        "role": "user",
+        "content": "9 am"
+      },
+      {
+        "role": "user",
+        "content": "okay thank you"
+      }
     ]
   }
 ]
