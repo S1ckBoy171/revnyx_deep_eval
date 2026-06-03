@@ -340,8 +340,56 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
       <div class="card-title" style="margin:0;">Conversation Scenarios</div>
       <span class="goldens-count" id="convGoldensCount">(0)</span>
     </div>
-    <div><button class="btn btn-sm" onclick="addConvGolden()">+ Add Scenario</button></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-sm btn-accent" onclick="toggleConvAiSection()"><img src="https://img.icons8.com/?size=100&id=rYb1JFR9WLSh&format=png&color=000000" style="width:14px;height:14px;filter:invert(1);vertical-align:middle;margin-right:4px;">Generate</button>
+      <button class="btn btn-sm btn-purple" onclick="toggleTranscriptSection()">From Transcript</button>
+      <button class="btn btn-sm" onclick="addConvGolden()">+ Add Scenario</button>
+    </div>
   </div>
+
+  <div class="ai-section" id="convAiSection">
+    <div class="ai-label">Describe the conversation scenarios to generate</div>
+    <textarea class="golden-textarea" id="convAiDescription" placeholder="e.g. User calls about tax filing, gets qualified on income, receives a plan recommendation. Include objection handling and early hangup scenarios..."></textarea>
+    <div style="margin-top:10px;">
+      <div class="golden-label">Eval Criteria for generated scenarios</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="convGenFlow" checked> Flow Correctness</label>
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="convGenLang" checked> Language</label>
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="convGenEdge" checked> Edge Cases</label>
+      </div>
+    </div>
+    <div class="ai-row">
+      <span style="font-size:12px;color:var(--text-muted);">Count:</span>
+      <input type="number" class="ai-count-input" id="convAiCount" value="3" min="1" max="10">
+      <button class="btn btn-sm btn-gold" id="btnGenerateConv" onclick="generateConvGoldens()">Generate</button>
+      <button class="btn btn-sm" onclick="toggleConvAiSection()">Cancel</button>
+    </div>
+    <div class="ai-status" id="convAiStatus"><span class="spinner"></span>Generating scenarios...</div>
+  </div>
+
+  <div class="ai-section" id="transcriptSection" style="border-color:var(--purple);">
+    <div class="ai-label" style="color:var(--purple);">Paste a conversation transcript</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Paste a real conversation (agent/user messages) and we'll extract it into a testable scenario. Format: one message per line, prefixed with "User:" or "Agent:" (or similar role labels).</div>
+    <textarea class="golden-textarea" id="transcriptInput" style="min-height:140px;" placeholder="User: Hello?
+Agent: Namaste! Main Priya bol rahi hoon ClearTax se...
+User: Haan boliye
+Agent: Aapne recently ClearTax pe apni details dekhi thi...
+User: Haan maine dekha tha
+Agent: Great! Aapki salary kitni hai annually?
+User: 12 lakh hai
+Agent: Perfect, toh aapke liye humara premium plan best rahega..."></textarea>
+    <div style="margin-top:10px;">
+      <div class="golden-label">Scenario name (optional)</div>
+      <input class="golden-input" id="transcriptScenario" placeholder="e.g. Happy path - tax filing inquiry" style="margin-bottom:10px;">
+    </div>
+    <div class="ai-row">
+      <button class="btn btn-sm btn-gold" id="btnTranscript" onclick="convertTranscript()">Convert to Scenario</button>
+      <button class="btn btn-sm btn-purple" id="btnTranscriptAi" onclick="convertTranscriptAi()">AI-Enhanced Convert</button>
+      <button class="btn btn-sm" onclick="toggleTranscriptSection()">Cancel</button>
+    </div>
+    <div class="ai-status" id="transcriptAiStatus"><span class="spinner"></span>Processing transcript...</div>
+  </div>
+
   <div id="convGoldensContainer"></div>
   <div class="goldens-empty" id="convGoldensEmpty">No conversation scenarios yet. Add a scenario to test multi-turn flows.</div>
   <button class="btn btn-sm btn-gold" id="btnSaveConvGoldens" onclick="saveConvGoldens()" style="display:none;margin-top:12px;">Save Scenarios</button>
@@ -531,6 +579,94 @@ function saveConvGoldens() {
   }));
   fetch('/api/conv_goldens', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(clean) })
   .then(r => r.json()).then(data => { if (data.success) { convGoldens = clean; renderConvGoldens(); showQuickStatus('Conversation scenarios saved!'); } });
+}
+
+// Generate Conversation Goldens
+function toggleConvAiSection() { document.getElementById('convAiSection').classList.toggle('visible'); document.getElementById('transcriptSection').classList.remove('visible'); }
+function toggleTranscriptSection() { document.getElementById('transcriptSection').classList.toggle('visible'); document.getElementById('convAiSection').classList.remove('visible'); }
+
+function generateConvGoldens() {
+  const desc = document.getElementById('convAiDescription').value.trim();
+  if (!desc) { document.getElementById('convAiDescription').focus(); return; }
+  const count = parseInt(document.getElementById('convAiCount').value) || 3;
+  const prompt = document.getElementById('promptInput').value;
+  const criteria = [];
+  if (document.getElementById('convGenFlow').checked) criteria.push('flow_correctness');
+  if (document.getElementById('convGenLang').checked) criteria.push('language');
+  if (document.getElementById('convGenEdge').checked) criteria.push('edge_case');
+
+  document.getElementById('btnGenerateConv').disabled = true;
+  document.getElementById('convAiStatus').classList.add('visible');
+  fetch('/api/generate_conv_goldens', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ description: desc, count: count, system_prompt: prompt, eval_criteria: criteria }) })
+  .then(r => r.json()).then(data => {
+    document.getElementById('btnGenerateConv').disabled = false;
+    document.getElementById('convAiStatus').classList.remove('visible');
+    if (data.success && data.scenarios) {
+      convGoldens = convGoldens.concat(data.scenarios);
+      renderConvGoldens();
+      document.getElementById('convAiSection').classList.remove('visible');
+      document.getElementById('convAiDescription').value = '';
+      showQuickStatus('Generated ' + data.scenarios.length + ' scenarios!');
+    } else { alert('Error: ' + (data.message || 'Unknown')); }
+  }).catch(err => {
+    document.getElementById('btnGenerateConv').disabled = false;
+    document.getElementById('convAiStatus').classList.remove('visible');
+    alert('Error: ' + err.message);
+  });
+}
+
+function convertTranscript() {
+  const raw = document.getElementById('transcriptInput').value.trim();
+  if (!raw) { document.getElementById('transcriptInput').focus(); return; }
+  const scenarioName = document.getElementById('transcriptScenario').value.trim() || 'Transcript scenario';
+
+  const lines = raw.split('\\n').filter(l => l.trim());
+  const turns = [];
+  for (const line of lines) {
+    const match = line.match(/^(user|customer|caller|human)\\s*[:>-]\\s*(.+)/i);
+    if (match) {
+      turns.push({ role: 'user', content: match[2].trim() });
+    }
+  }
+
+  if (!turns.length) {
+    alert('Could not find any user messages. Make sure lines start with "User:", "Customer:", "Caller:", or "Human:"');
+    return;
+  }
+
+  convGoldens.push({ scenario: scenarioName, eval_criteria: ['flow_correctness', 'language', 'edge_case'], turns: turns });
+  renderConvGoldens();
+  document.getElementById('transcriptSection').classList.remove('visible');
+  document.getElementById('transcriptInput').value = '';
+  document.getElementById('transcriptScenario').value = '';
+  showQuickStatus('Extracted ' + turns.length + ' turns from transcript!');
+}
+
+function convertTranscriptAi() {
+  const raw = document.getElementById('transcriptInput').value.trim();
+  if (!raw) { document.getElementById('transcriptInput').focus(); return; }
+  const scenarioName = document.getElementById('transcriptScenario').value.trim() || '';
+  const prompt = document.getElementById('promptInput').value;
+
+  document.getElementById('btnTranscriptAi').disabled = true;
+  document.getElementById('transcriptAiStatus').classList.add('visible');
+  fetch('/api/transcript_to_golden', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ transcript: raw, scenario_name: scenarioName, system_prompt: prompt }) })
+  .then(r => r.json()).then(data => {
+    document.getElementById('btnTranscriptAi').disabled = false;
+    document.getElementById('transcriptAiStatus').classList.remove('visible');
+    if (data.success && data.scenario) {
+      convGoldens.push(data.scenario);
+      renderConvGoldens();
+      document.getElementById('transcriptSection').classList.remove('visible');
+      document.getElementById('transcriptInput').value = '';
+      document.getElementById('transcriptScenario').value = '';
+      showQuickStatus('AI converted transcript to scenario!');
+    } else { alert('Error: ' + (data.message || 'Unknown')); }
+  }).catch(err => {
+    document.getElementById('btnTranscriptAi').disabled = false;
+    document.getElementById('transcriptAiStatus').classList.remove('visible');
+    alert('Error: ' + err.message);
+  });
 }
 
 // Optimizer Config
@@ -770,6 +906,19 @@ function computeDiff(a, b) {
 }
 
 // Results Modal
+function renderConversationTranscript(t) {
+  const inputs = (t.input || '').split('\\n').filter(l => l.trim());
+  const outputs = (t.output || '').split('\\n').filter(l => l.trim());
+  let html = '<div style="background:var(--bg-deep);border:1px solid var(--border-subtle);border-radius:8px;padding:14px;margin:8px 0;max-height:240px;overflow-y:auto;">';
+  const maxTurns = Math.max(inputs.length, outputs.length);
+  for (let i = 0; i < maxTurns; i++) {
+    if (inputs[i]) html += '<div style="margin-bottom:6px;"><span style="font-size:10px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:0.5px;">User</span><div style="font-size:12px;color:var(--text-secondary);padding:4px 0 4px 10px;border-left:2px solid var(--blue);">' + escHtml(inputs[i].replace(/^User:\\s*/i, '')) + '</div></div>';
+    if (outputs[i]) html += '<div style="margin-bottom:10px;"><span style="font-size:10px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;">Agent</span><div style="font-size:12px;color:var(--text-secondary);padding:4px 0 4px 10px;border-left:2px solid var(--accent);">' + escHtml(outputs[i].replace(/^Agent:\\s*/i, '')) + '</div></div>';
+  }
+  html += '</div>';
+  return html;
+}
+
 function openResultsModal(idx) {
   const run = _allRuns[idx];
   if (!run) return;
@@ -778,6 +927,7 @@ function openResultsModal(idx) {
   const allTests = (run.tests || []).concat(run.tool_tests || []);
   const passed = allTests.filter(t => t.passed);
   const failed = allTests.filter(t => !t.passed);
+  const isConversation = run.type === 'conversation_evaluation';
 
   let html = '';
 
@@ -794,34 +944,42 @@ function openResultsModal(idx) {
   if (failed.length) {
     html += '<div style="margin-bottom:28px;">';
     html += '<div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--error);margin-bottom:12px;font-weight:600;">Failed Tests (' + failed.length + ')</div>';
-    html += '<table class="test-table" style="margin-bottom:0;">';
-    html += '<thead><tr><th>Input</th><th>Metric</th><th>Score</th><th>Reason</th></tr></thead><tbody>';
     failed.forEach(t => {
-      html += '<tr style="background:var(--error-dim);">';
-      html += '<td style="max-width:250px;white-space:normal;">' + escHtml(t.input) + '</td>';
-      html += '<td>' + escHtml(t.metric) + '</td>';
-      html += '<td class="score score-fail">' + (t.score != null ? t.score.toFixed(2) : '-') + '</td>';
-      html += '<td style="max-width:350px;white-space:normal;font-size:11px;color:var(--text-muted);">' + escHtml(t.reason || 'No reason provided') + '</td>';
-      html += '</tr>';
+      html += '<div style="background:var(--error-dim);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:16px;margin-bottom:12px;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+      html += '<span style="font-size:13px;font-weight:500;color:var(--text-primary);">' + escHtml(t.metric) + (t.scenario ? ' &mdash; ' + escHtml(t.scenario) : '') + '</span>';
+      html += '<span class="score score-fail" style="font-size:14px;">' + (t.score != null ? t.score.toFixed(2) : '-') + '</span>';
+      html += '</div>';
+      if (isConversation && t.output) {
+        html += renderConversationTranscript(t);
+      } else {
+        html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;"><strong>Input:</strong> ' + escHtml(t.input.substring(0, 200)) + '</div>';
+      }
+      if (t.reason) html += '<div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-subtle);">' + escHtml(t.reason) + '</div>';
+      html += '</div>';
     });
-    html += '</tbody></table></div>';
+    html += '</div>';
   }
 
   // Passed tests section
   if (passed.length) {
     html += '<div style="margin-bottom:28px;">';
     html += '<div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--success);margin-bottom:12px;font-weight:600;">Passed Tests (' + passed.length + ')</div>';
-    html += '<table class="test-table" style="margin-bottom:0;">';
-    html += '<thead><tr><th>Input</th><th>Metric</th><th>Score</th><th>Reason</th></tr></thead><tbody>';
     passed.forEach(t => {
-      html += '<tr>';
-      html += '<td style="max-width:250px;white-space:normal;">' + escHtml(t.input) + '</td>';
-      html += '<td>' + escHtml(t.metric) + '</td>';
-      html += '<td class="score score-pass">' + (t.score != null ? t.score.toFixed(2) : '-') + '</td>';
-      html += '<td style="max-width:350px;white-space:normal;font-size:11px;color:var(--text-muted);">' + escHtml(t.reason || '-') + '</td>';
-      html += '</tr>';
+      html += '<div style="background:var(--success-dim);border:1px solid rgba(34,197,94,0.15);border-radius:8px;padding:16px;margin-bottom:12px;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+      html += '<span style="font-size:13px;font-weight:500;color:var(--text-primary);">' + escHtml(t.metric) + (t.scenario ? ' &mdash; ' + escHtml(t.scenario) : '') + '</span>';
+      html += '<span class="score score-pass" style="font-size:14px;">' + (t.score != null ? t.score.toFixed(2) : '-') + '</span>';
+      html += '</div>';
+      if (isConversation && t.output) {
+        html += renderConversationTranscript(t);
+      } else {
+        html += '<div style="font-size:12px;color:var(--text-muted);"><strong>Input:</strong> ' + escHtml(t.input.substring(0, 200)) + '</div>';
+      }
+      if (t.reason) html += '<div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-subtle);">' + escHtml(t.reason) + '</div>';
+      html += '</div>';
     });
-    html += '</tbody></table></div>';
+    html += '</div>';
   }
 
   // Improvements section
@@ -829,7 +987,7 @@ function openResultsModal(idx) {
     html += '<div>';
     html += '<div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:12px;font-weight:600;">Suggested Improvements</div>';
     failed.forEach(t => {
-      html += '<div class="improvement" style="margin-bottom:10px;"><strong>' + escHtml(t.metric) + '</strong> on "' + escHtml(t.input.substring(0,60)) + '"<br><span style="color:var(--text-secondary);">' + escHtml(t.reason || 'No suggestion available') + '</span></div>';
+      html += '<div class="improvement" style="margin-bottom:10px;"><strong>' + escHtml(t.metric) + '</strong> on "' + escHtml((t.scenario || t.input).substring(0,60)) + '"<br><span style="color:var(--text-secondary);">' + escHtml(t.reason || 'No suggestion available') + '</span></div>';
     });
     html += '</div>';
   }
@@ -1011,6 +1169,97 @@ Return ONLY the JSON array, no other text."""
                     content = content.rsplit("```", 1)[0]
                 generated = json.loads(content)
                 self._json_response({"success": True, "goldens": generated})
+            except Exception as e:
+                self._json_response({"success": False, "message": str(e)})
+
+        elif self.path == "/api/conv_goldens":
+            with open("conversation_goldens.json", "w") as f:
+                json.dump(body, f, indent=2)
+            self._json_response({"success": True})
+
+        elif self.path == "/api/generate_conv_goldens":
+            description = body.get("description", "")
+            count = body.get("count", 3)
+            system_prompt = body.get("system_prompt", "")
+            eval_criteria = body.get("eval_criteria", ["flow_correctness", "language", "edge_case"])
+
+            try:
+                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                gen_prompt = f"""Generate exactly {count} conversation test scenarios for evaluating a voice/chat agent.
+
+Context about the agent being tested:
+System prompt: {system_prompt if system_prompt else '(no system prompt provided)'}
+
+What the scenarios should cover:
+{description}
+
+Each scenario represents a multi-turn conversation where only the USER messages are provided (the agent's responses will be generated live during testing).
+
+Return a JSON array with exactly {count} objects, each having:
+- "scenario": a short descriptive name for this test case (e.g. "Happy path - full call flow", "User objects mid-pitch")
+- "eval_criteria": {json.dumps(eval_criteria)}
+- "turns": an array of objects with {{"role": "user", "content": "the user message"}}
+
+Each scenario should have 3-7 user turns that simulate a realistic conversation flow.
+Make the messages natural and conversational (use Hinglish if the system prompt suggests a Hindi-speaking audience).
+Vary the scenarios: include happy paths, objection handling, confusion, early exits, off-topic tangents.
+
+Return ONLY the JSON array, no other text."""
+
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": gen_prompt}],
+                    temperature=0.8,
+                )
+                content = response.choices[0].message.content.strip()
+                if content.startswith("```"):
+                    content = content.split("\n", 1)[1]
+                    content = content.rsplit("```", 1)[0]
+                generated = json.loads(content)
+                self._json_response({"success": True, "scenarios": generated})
+            except Exception as e:
+                self._json_response({"success": False, "message": str(e)})
+
+        elif self.path == "/api/transcript_to_golden":
+            transcript = body.get("transcript", "")
+            scenario_name = body.get("scenario_name", "")
+            system_prompt = body.get("system_prompt", "")
+
+            try:
+                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                gen_prompt = f"""Analyze this conversation transcript and convert it into a test scenario for evaluating an AI agent.
+
+Transcript:
+{transcript}
+
+Agent's system prompt (for context): {system_prompt if system_prompt else '(not provided)'}
+
+Extract the user messages from this transcript and determine:
+1. A descriptive scenario name (use the provided name if given: "{scenario_name}")
+2. Which eval criteria are most relevant: "flow_correctness" (does agent follow logical flow), "language" (proper language/tone), "edge_case" (handles objections/interruptions)
+3. The user turns only (the agent responses will be regenerated during testing)
+
+Return a single JSON object with:
+- "scenario": descriptive name for this test case
+- "eval_criteria": array of relevant criteria from ["flow_correctness", "language", "edge_case"]
+- "turns": array of objects with {{"role": "user", "content": "extracted user message"}}
+
+Only include user/customer/caller messages in turns, not the agent/assistant messages.
+Clean up the messages if needed (fix typos, remove timestamps) but keep the natural language style.
+
+Return ONLY the JSON object, no other text."""
+
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": gen_prompt}],
+                    temperature=0.3,
+                )
+                content = response.choices[0].message.content.strip()
+                if content.startswith("```"):
+                    content = content.split("\n", 1)[1]
+                    content = content.rsplit("```", 1)[0]
+                scenario = json.loads(content)
+                self._json_response({"success": True, "scenario": scenario})
             except Exception as e:
                 self._json_response({"success": False, "message": str(e)})
 

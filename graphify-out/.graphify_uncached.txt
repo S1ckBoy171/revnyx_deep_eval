@@ -1,0 +1,15 @@
+/Users/samarthsachan/Desktop/revnyx_deep_eval/.claude/settings.local.json
+/Users/samarthsachan/Desktop/revnyx_deep_eval/config.json
+/Users/samarthsachan/Desktop/revnyx_deep_eval/conversation_goldens.json
+/Users/samarthsachan/Desktop/revnyx_deep_eval/dashboard.py
+/Users/samarthsachan/Desktop/revnyx_deep_eval/llm_client.py
+/Users/samarthsachan/Desktop/revnyx_deep_eval/optimize_prompt.py
+/Users/samarthsachan/Desktop/revnyx_deep_eval/optimizer_config.json
+/Users/samarthsachan/Desktop/revnyx_deep_eval/results.json
+/Users/samarthsachan/Desktop/revnyx_deep_eval/test_conversation.py
+/Users/samarthsachan/Desktop/revnyx_deep_eval/test_prompts.py
+/Users/samarthsachan/Desktop/revnyx_deep_eval/test_tools.py
+/Users/samarthsachan/Desktop/revnyx_deep_eval/tool_goldens.json
+/Users/samarthsachan/Desktop/revnyx_deep_eval/DEEPEVAL_REFERENCE.txt
+/Users/samarthsachan/Desktop/revnyx_deep_eval/README.md
+/Users/samarthsachan/Desktop/revnyx_deep_eval/logo.png

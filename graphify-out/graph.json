@@ -1,0 +1,1873 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {
+    "hyperedges": [
+      {
+        "id": "evaluation_pipeline",
+        "label": "Evaluation Pipeline (Test -> LLM Client -> Results)",
+        "nodes": [
+          "revnyx_deep_eval_test_prompts",
+          "revnyx_deep_eval_test_tools",
+          "revnyx_deep_eval_test_conversation",
+          "revnyx_deep_eval_llm_client",
+          "revnyx_deep_eval_results"
+        ],
+        "relation": "participate_in",
+        "confidence": "EXTRACTED",
+        "confidence_score": 1.0,
+        "source_file": "dashboard.py"
+      },
+      {
+        "id": "dashboard_orchestration",
+        "label": "Dashboard Orchestrates All Test Types",
+        "nodes": [
+          "revnyx_deep_eval_dashboard",
+          "revnyx_deep_eval_test_prompts",
+          "revnyx_deep_eval_test_tools",
+          "revnyx_deep_eval_test_conversation",
+          "revnyx_deep_eval_optimize_prompt"
+        ],
+        "relation": "participate_in",
+        "confidence": "EXTRACTED",
+        "confidence_score": 1.0,
+        "source_file": "dashboard.py"
+      },
+      {
+        "id": "golden_datasets",
+        "label": "Golden Test Datasets",
+        "nodes": [
+          "revnyx_deep_eval_conversation_goldens",
+          "revnyx_deep_eval_tool_goldens",
+          "concept_golden"
+        ],
+        "relation": "implement",
+        "confidence": "INFERRED",
+        "confidence_score": 0.95,
+        "source_file": "DEEPEVAL_REFERENCE.txt"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "label": "settings.local.json",
+      "file_type": "code",
+      "source_file": ".claude/settings.local.json",
+      "source_location": "L1",
+      "id": "claude_settings_local",
+      "community": 10,
+      "norm_label": "settings.local.json"
+    },
+    {
+      "label": "permissions",
+      "file_type": "code",
+      "source_file": ".claude/settings.local.json",
+      "source_location": "L2",
+      "id": "claude_settings_local_permissions",
+      "community": 10,
+      "norm_label": "permissions"
+    },
+    {
+      "label": "allow",
+      "file_type": "code",
+      "source_file": ".claude/settings.local.json",
+      "source_location": "L3",
+      "id": "claude_settings_local_permissions_allow",
+      "community": 10,
+      "norm_label": "allow"
+    },
+    {
+      "label": "config.json",
+      "file_type": "code",
+      "source_file": "config.json",
+      "source_location": "L1",
+      "id": "config",
+      "community": 9,
+      "norm_label": "config.json"
+    },
+    {
+      "label": "model",
+      "file_type": "code",
+      "source_file": "config.json",
+      "source_location": "L2",
+      "id": "config_model",
+      "community": 9,
+      "norm_label": "model"
+    },
+    {
+      "label": "temperature",
+      "file_type": "code",
+      "source_file": "config.json",
+      "source_location": "L3",
+      "id": "config_temperature",
+      "community": 9,
+      "norm_label": "temperature"
+    },
+    {
+      "label": "max_tokens",
+      "file_type": "code",
+      "source_file": "config.json",
+      "source_location": "L4",
+      "id": "config_max_tokens",
+      "community": 9,
+      "norm_label": "max_tokens"
+    },
+    {
+      "label": "conversation_goldens.json",
+      "file_type": "code",
+      "source_file": "conversation_goldens.json",
+      "source_location": "L1",
+      "id": "conversation_goldens",
+      "community": 11,
+      "norm_label": "conversation_goldens.json"
+    },
+    {
+      "label": "dashboard.py",
+      "file_type": "code",
+      "source_file": "dashboard.py",
+      "source_location": "L1",
+      "id": "dashboard",
+      "community": 1,
+      "norm_label": "dashboard.py"
+    },
+    {
+      "label": "DashboardHandler",
+      "file_type": "code",
+      "source_file": "dashboard.py",
+      "source_location": "L889",
+      "id": "dashboard_dashboardhandler",
+      "community": 1,
+      "norm_label": "dashboardhandler"
+    },
+    {
+      "label": "BaseHTTPRequestHandler",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "id": "basehttprequesthandler",
+      "community": 1,
+      "norm_label": "basehttprequesthandler"
+    },
+    {
+      "label": ".do_GET()",
+      "file_type": "code",
+      "source_file": "dashboard.py",
+      "source_location": "L890",
+      "id": "dashboard_dashboardhandler_do_get",
+      "community": 1,
+      "norm_label": ".do_get()"
+    },
+    {
+      "label": ".do_POST()",
+      "file_type": "code",
+      "source_file": "dashboard.py",
+      "source_location": "L962",
+      "id": "dashboard_dashboardhandler_do_post",
+      "community": 1,
+      "norm_label": ".do_post()"
+    },
+    {
+      "label": "._json_response()",
+      "file_type": "code",
+      "source_file": "dashboard.py",
+      "source_location": "L1092",
+      "id": "dashboard_dashboardhandler_json_response",
+      "community": 1,
+      "norm_label": "._json_response()"
+    },
+    {
+      "label": ".log_message()",
+      "file_type": "code",
+      "source_file": "dashboard.py",
+      "source_location": "L1098",
+      "id": "dashboard_dashboardhandler_log_message",
+      "community": 1,
+      "norm_label": ".log_message()"
+    },
+    {
+      "label": "Local dashboard server. Run with: python3 dashboard.py Then open: http://localho",
+      "file_type": "rationale",
+      "source_file": "dashboard.py",
+      "source_location": "L1",
+      "id": "dashboard_rationale_1",
+      "community": 1,
+      "norm_label": "local dashboard server. run with: python3 dashboard.py then open: http://localho"
+    },
+    {
+      "label": "llm_client.py",
+      "file_type": "code",
+      "source_file": "llm_client.py",
+      "source_location": "L1",
+      "id": "llm_client",
+      "community": 2,
+      "norm_label": "llm_client.py"
+    },
+    {
+      "label": "load_config()",
+      "file_type": "code",
+      "source_file": "llm_client.py",
+      "source_location": "L18",
+      "id": "llm_client_load_config",
+      "community": 2,
+      "norm_label": "load_config()"
+    },
+    {
+      "label": "load_system_prompt()",
+      "file_type": "code",
+      "source_file": "llm_client.py",
+      "source_location": "L23",
+      "id": "llm_client_load_system_prompt",
+      "community": 2,
+      "norm_label": "load_system_prompt()"
+    },
+    {
+      "label": "get_client()",
+      "file_type": "code",
+      "source_file": "llm_client.py",
+      "source_location": "L29",
+      "id": "llm_client_get_client",
+      "community": 2,
+      "norm_label": "get_client()"
+    },
+    {
+      "label": "call()",
+      "file_type": "code",
+      "source_file": "llm_client.py",
+      "source_location": "L33",
+      "id": "llm_client_call",
+      "community": 2,
+      "norm_label": "call()"
+    },
+    {
+      "label": "str",
+      "file_type": "code",
+      "source_file": "llm_client.py",
+      "source_location": "L33",
+      "id": "llm_client_py_str",
+      "community": 2,
+      "norm_label": "str"
+    },
+    {
+      "label": "LLM client wrapper for the Revnyx DeepEval project. - Config (model, temperature",
+      "file_type": "rationale",
+      "source_file": "llm_client.py",
+      "source_location": "L1",
+      "id": "llm_client_rationale_1",
+      "community": 2,
+      "norm_label": "llm client wrapper for the revnyx deepeval project. - config (model, temperature"
+    },
+    {
+      "label": "Call the LLM with the given input and return the response text.",
+      "file_type": "rationale",
+      "source_file": "llm_client.py",
+      "source_location": "L34",
+      "id": "llm_client_rationale_34",
+      "community": 2,
+      "norm_label": "call the llm with the given input and return the response text."
+    },
+    {
+      "label": "optimize_prompt.py",
+      "file_type": "code",
+      "source_file": "optimize_prompt.py",
+      "source_location": "L1",
+      "id": "optimize_prompt",
+      "community": 6,
+      "norm_label": "optimize_prompt.py"
+    },
+    {
+      "label": "model_callback()",
+      "file_type": "code",
+      "source_file": "optimize_prompt.py",
+      "source_location": "L86",
+      "id": "optimize_prompt_model_callback",
+      "community": 6,
+      "norm_label": "model_callback()"
+    },
+    {
+      "label": "Prompt",
+      "file_type": "code",
+      "source_file": "optimize_prompt.py",
+      "source_location": "L86",
+      "id": "prompt",
+      "community": 6,
+      "norm_label": "prompt"
+    },
+    {
+      "label": "Golden",
+      "file_type": "code",
+      "source_file": "optimize_prompt.py",
+      "source_location": "L86",
+      "id": "golden",
+      "community": 6,
+      "norm_label": "golden"
+    },
+    {
+      "label": "str",
+      "file_type": "code",
+      "source_file": "optimize_prompt.py",
+      "source_location": "L86",
+      "id": "optimize_prompt_py_str",
+      "community": 6,
+      "norm_label": "str"
+    },
+    {
+      "label": "Prompt optimization script. Run with: python3 optimize_prompt.py  Uses DeepEval'",
+      "file_type": "rationale",
+      "source_file": "optimize_prompt.py",
+      "source_location": "L1",
+      "id": "optimize_prompt_rationale_1",
+      "community": 6,
+      "norm_label": "prompt optimization script. run with: python3 optimize_prompt.py  uses deepeval'"
+    },
+    {
+      "label": "optimizer_config.json",
+      "file_type": "code",
+      "source_file": "optimizer_config.json",
+      "source_location": "L1",
+      "id": "optimizer_config",
+      "community": 7,
+      "norm_label": "optimizer_config.json"
+    },
+    {
+      "label": "algorithm",
+      "file_type": "code",
+      "source_file": "optimizer_config.json",
+      "source_location": "L2",
+      "id": "optimizer_config_algorithm",
+      "community": 7,
+      "norm_label": "algorithm"
+    },
+    {
+      "label": "iterations",
+      "file_type": "code",
+      "source_file": "optimizer_config.json",
+      "source_location": "L3",
+      "id": "optimizer_config_iterations",
+      "community": 7,
+      "norm_label": "iterations"
+    },
+    {
+      "label": "metric",
+      "file_type": "code",
+      "source_file": "optimizer_config.json",
+      "source_location": "L4",
+      "id": "optimizer_config_metric",
+      "community": 7,
+      "norm_label": "metric"
+    },
+    {
+      "label": "threshold",
+      "file_type": "code",
+      "source_file": "optimizer_config.json",
+      "source_location": "L5",
+      "id": "optimizer_config_threshold",
+      "community": 7,
+      "norm_label": "threshold"
+    },
+    {
+      "label": "results.json",
+      "file_type": "code",
+      "source_file": "results.json",
+      "source_location": "L1",
+      "id": "results",
+      "community": 12,
+      "norm_label": "results.json"
+    },
+    {
+      "label": "test_conversation.py",
+      "file_type": "code",
+      "source_file": "test_conversation.py",
+      "source_location": "L1",
+      "id": "test_conversation",
+      "community": 3,
+      "norm_label": "test_conversation.py"
+    },
+    {
+      "label": "_save_result()",
+      "file_type": "code",
+      "source_file": "test_conversation.py",
+      "source_location": "L40",
+      "id": "test_conversation_save_result",
+      "community": 3,
+      "norm_label": "_save_result()"
+    },
+    {
+      "label": "_flush_results()",
+      "file_type": "code",
+      "source_file": "test_conversation.py",
+      "source_location": "L52",
+      "id": "test_conversation_flush_results",
+      "community": 3,
+      "norm_label": "_flush_results()"
+    },
+    {
+      "label": "run_conversation()",
+      "file_type": "code",
+      "source_file": "test_conversation.py",
+      "source_location": "L78",
+      "id": "test_conversation_run_conversation",
+      "community": 3,
+      "norm_label": "run_conversation()"
+    },
+    {
+      "label": "test_conversation_flow()",
+      "file_type": "code",
+      "source_file": "test_conversation.py",
+      "source_location": "L138",
+      "id": "test_conversation_test_conversation_flow",
+      "community": 3,
+      "norm_label": "test_conversation_flow()"
+    },
+    {
+      "label": "Conversation flow evaluation tests. Run with: deepeval test run test_conversatio",
+      "file_type": "rationale",
+      "source_file": "test_conversation.py",
+      "source_location": "L1",
+      "id": "test_conversation_rationale_1",
+      "community": 3,
+      "norm_label": "conversation flow evaluation tests. run with: deepeval test run test_conversatio"
+    },
+    {
+      "label": "Run a full conversation, returning list of (user_msg, agent_response) pairs.",
+      "file_type": "rationale",
+      "source_file": "test_conversation.py",
+      "source_location": "L79",
+      "id": "test_conversation_rationale_79",
+      "community": 3,
+      "norm_label": "run a full conversation, returning list of (user_msg, agent_response) pairs."
+    },
+    {
+      "label": "test_prompts.py",
+      "file_type": "code",
+      "source_file": "test_prompts.py",
+      "source_location": "L1",
+      "id": "test_prompts",
+      "community": 4,
+      "norm_label": "test_prompts.py"
+    },
+    {
+      "label": "_save_result()",
+      "file_type": "code",
+      "source_file": "test_prompts.py",
+      "source_location": "L34",
+      "id": "test_prompts_save_result",
+      "community": 4,
+      "norm_label": "_save_result()"
+    },
+    {
+      "label": "_flush_results()",
+      "file_type": "code",
+      "source_file": "test_prompts.py",
+      "source_location": "L44",
+      "id": "test_prompts_flush_results",
+      "community": 4,
+      "norm_label": "_flush_results()"
+    },
+    {
+      "label": "test_answer_relevancy()",
+      "file_type": "code",
+      "source_file": "test_prompts.py",
+      "source_location": "L68",
+      "id": "test_prompts_test_answer_relevancy",
+      "community": 4,
+      "norm_label": "test_answer_relevancy()"
+    },
+    {
+      "label": "test_hallucination()",
+      "file_type": "code",
+      "source_file": "test_prompts.py",
+      "source_location": "L83",
+      "id": "test_prompts_test_hallucination",
+      "community": 4,
+      "norm_label": "test_hallucination()"
+    },
+    {
+      "label": "test_custom_geval()",
+      "file_type": "code",
+      "source_file": "test_prompts.py",
+      "source_location": "L98",
+      "id": "test_prompts_test_custom_geval",
+      "community": 4,
+      "norm_label": "test_custom_geval()"
+    },
+    {
+      "label": "Prompt quality evaluation tests. Run with: deepeval test run test_prompts.py or",
+      "file_type": "rationale",
+      "source_file": "test_prompts.py",
+      "source_location": "L1",
+      "id": "test_prompts_rationale_1",
+      "community": 4,
+      "norm_label": "prompt quality evaluation tests. run with: deepeval test run test_prompts.py or"
+    },
+    {
+      "label": "test_tools.py",
+      "file_type": "code",
+      "source_file": "test_tools.py",
+      "source_location": "L1",
+      "id": "test_tools",
+      "community": 8,
+      "norm_label": "test_tools.py"
+    },
+    {
+      "label": "_save_result()",
+      "file_type": "code",
+      "source_file": "test_tools.py",
+      "source_location": "L25",
+      "id": "test_tools_save_result",
+      "community": 8,
+      "norm_label": "_save_result()"
+    },
+    {
+      "label": "_flush_results()",
+      "file_type": "code",
+      "source_file": "test_tools.py",
+      "source_location": "L35",
+      "id": "test_tools_flush_results",
+      "community": 8,
+      "norm_label": "_flush_results()"
+    },
+    {
+      "label": "test_tool_correctness()",
+      "file_type": "code",
+      "source_file": "test_tools.py",
+      "source_location": "L64",
+      "id": "test_tools_test_tool_correctness",
+      "community": 8,
+      "norm_label": "test_tool_correctness()"
+    },
+    {
+      "label": "Tool call evaluation tests. Run with: deepeval test run test_tools.py",
+      "file_type": "rationale",
+      "source_file": "test_tools.py",
+      "source_location": "L1",
+      "id": "test_tools_rationale_1",
+      "community": 8,
+      "norm_label": "tool call evaluation tests. run with: deepeval test run test_tools.py"
+    },
+    {
+      "label": "tool_goldens.json",
+      "file_type": "code",
+      "source_file": "tool_goldens.json",
+      "source_location": "L1",
+      "id": "tool_goldens",
+      "community": 16,
+      "norm_label": "tool_goldens.json"
+    },
+    {
+      "label": "Dashboard Server",
+      "file_type": "code",
+      "source_file": "dashboard.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_dashboard",
+      "community": 0,
+      "norm_label": "dashboard server"
+    },
+    {
+      "label": "LLM Client",
+      "file_type": "code",
+      "source_file": "llm_client.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_llm_client",
+      "community": 14,
+      "norm_label": "llm client"
+    },
+    {
+      "label": "Prompt Optimizer Script",
+      "file_type": "code",
+      "source_file": "optimize_prompt.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_optimize_prompt",
+      "community": 0,
+      "norm_label": "prompt optimizer script"
+    },
+    {
+      "label": "Prompt Quality Tests",
+      "file_type": "code",
+      "source_file": "test_prompts.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_test_prompts",
+      "community": 0,
+      "norm_label": "prompt quality tests"
+    },
+    {
+      "label": "Tool Correctness Tests",
+      "file_type": "code",
+      "source_file": "test_tools.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_test_tools",
+      "community": 5,
+      "norm_label": "tool correctness tests"
+    },
+    {
+      "label": "Conversation Flow Tests",
+      "file_type": "code",
+      "source_file": "test_conversation.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_test_conversation",
+      "community": 0,
+      "norm_label": "conversation flow tests"
+    },
+    {
+      "label": "LLM Config",
+      "file_type": "code",
+      "source_file": "config.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_config",
+      "community": 0,
+      "norm_label": "llm config"
+    },
+    {
+      "label": "Optimizer Config",
+      "file_type": "code",
+      "source_file": "optimizer_config.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_optimizer_config",
+      "community": 0,
+      "norm_label": "optimizer config"
+    },
+    {
+      "label": "Conversation Goldens Dataset",
+      "file_type": "code",
+      "source_file": "conversation_goldens.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_conversation_goldens",
+      "community": 0,
+      "norm_label": "conversation goldens dataset"
+    },
+    {
+      "label": "Tool Goldens Dataset",
+      "file_type": "code",
+      "source_file": "tool_goldens.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_tool_goldens",
+      "community": 5,
+      "norm_label": "tool goldens dataset"
+    },
+    {
+      "label": "Results History",
+      "file_type": "code",
+      "source_file": "results.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_results",
+      "community": 0,
+      "norm_label": "results history"
+    },
+    {
+      "label": "DeepEval Reference Guide",
+      "file_type": "document",
+      "source_file": "DEEPEVAL_REFERENCE.txt",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_deepeval_reference",
+      "community": 5,
+      "norm_label": "deepeval reference guide"
+    },
+    {
+      "label": "README Documentation",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_readme",
+      "community": 15,
+      "norm_label": "readme documentation"
+    },
+    {
+      "label": "Revnyx Logo",
+      "file_type": "image",
+      "source_file": "logo.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_logo",
+      "community": 0,
+      "norm_label": "revnyx logo"
+    },
+    {
+      "label": "llm_client.call",
+      "file_type": "code",
+      "source_file": "llm_client.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_llm_client_call",
+      "community": 0,
+      "norm_label": "llm_client.call"
+    },
+    {
+      "label": "llm_client.load_config",
+      "file_type": "code",
+      "source_file": "llm_client.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_llm_client_load_config",
+      "community": 0,
+      "norm_label": "llm_client.load_config"
+    },
+    {
+      "label": "llm_client.load_system_prompt",
+      "file_type": "code",
+      "source_file": "llm_client.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_llm_client_load_system_prompt",
+      "community": 0,
+      "norm_label": "llm_client.load_system_prompt"
+    },
+    {
+      "label": "llm_client.get_client",
+      "file_type": "code",
+      "source_file": "llm_client.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_llm_client_get_client",
+      "community": 0,
+      "norm_label": "llm_client.get_client"
+    },
+    {
+      "label": "optimize_prompt.model_callback",
+      "file_type": "code",
+      "source_file": "optimize_prompt.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_optimize_prompt_model_callback",
+      "community": 0,
+      "norm_label": "optimize_prompt.model_callback"
+    },
+    {
+      "label": "DashboardHandler",
+      "file_type": "code",
+      "source_file": "dashboard.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "revnyx_deep_eval_dashboard_dashboardhandler",
+      "community": 13,
+      "norm_label": "dashboardhandler"
+    },
+    {
+      "label": "Golden (Test Reference Data Point)",
+      "file_type": "concept",
+      "source_file": "DEEPEVAL_REFERENCE.txt",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "concept_golden",
+      "community": 5,
+      "norm_label": "golden (test reference data point)"
+    },
+    {
+      "label": "Prompt Optimization",
+      "file_type": "concept",
+      "source_file": "DEEPEVAL_REFERENCE.txt",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "concept_prompt_optimization",
+      "community": 0,
+      "norm_label": "prompt optimization"
+    },
+    {
+      "label": "LLM-as-Judge Evaluation",
+      "file_type": "concept",
+      "source_file": "DEEPEVAL_REFERENCE.txt",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "concept_llm_as_judge",
+      "community": 5,
+      "norm_label": "llm-as-judge evaluation"
+    },
+    {
+      "label": "Tool Correctness Evaluation",
+      "file_type": "concept",
+      "source_file": "DEEPEVAL_REFERENCE.txt",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "concept_tool_correctness",
+      "community": 5,
+      "norm_label": "tool correctness evaluation"
+    },
+    {
+      "label": "Multi-Turn Conversation Flow Testing",
+      "file_type": "concept",
+      "source_file": "test_conversation.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "concept_conversation_flow_testing",
+      "community": 0,
+      "norm_label": "multi-turn conversation flow testing"
+    },
+    {
+      "label": "GEPA Algorithm",
+      "file_type": "concept",
+      "source_file": "optimize_prompt.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "concept_gepa_algorithm",
+      "community": 0,
+      "norm_label": "gepa algorithm"
+    },
+    {
+      "label": "Hinglish Voice Call Agent",
+      "file_type": "rationale",
+      "source_file": "conversation_goldens.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "concept_hinglish_voice_agent",
+      "community": 0,
+      "norm_label": "hinglish voice call agent"
+    }
+  ],
+  "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/settings.local.json",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "claude_settings_local",
+      "target": "claude_settings_local_permissions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/settings.local.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "claude_settings_local_permissions",
+      "target": "claude_settings_local_permissions_allow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "config.json",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "config",
+      "target": "config_max_tokens",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "config.json",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "config",
+      "target": "config_model",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "config.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "config",
+      "target": "config_temperature",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "dashboard.py",
+      "source_location": "L889",
+      "weight": 1.0,
+      "source": "dashboard",
+      "target": "dashboard_dashboardhandler",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "dashboard.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "dashboard_rationale_1",
+      "target": "dashboard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "dashboard.py",
+      "source_location": "L889",
+      "weight": 1.0,
+      "source": "dashboard_dashboardhandler",
+      "target": "basehttprequesthandler",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "dashboard.py",
+      "source_location": "L890",
+      "weight": 1.0,
+      "source": "dashboard_dashboardhandler",
+      "target": "dashboard_dashboardhandler_do_get",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "dashboard.py",
+      "source_location": "L962",
+      "weight": 1.0,
+      "source": "dashboard_dashboardhandler",
+      "target": "dashboard_dashboardhandler_do_post",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "dashboard.py",
+      "source_location": "L1092",
+      "weight": 1.0,
+      "source": "dashboard_dashboardhandler",
+      "target": "dashboard_dashboardhandler_json_response",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "dashboard.py",
+      "source_location": "L1098",
+      "weight": 1.0,
+      "source": "dashboard_dashboardhandler",
+      "target": "dashboard_dashboardhandler_log_message",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "dashboard.py",
+      "source_location": "L969",
+      "weight": 1.0,
+      "source": "dashboard_dashboardhandler_do_post",
+      "target": "dashboard_dashboardhandler_json_response",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "llm_client.py",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "llm_client",
+      "target": "llm_client_call",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "llm_client.py",
+      "source_location": "L29",
+      "weight": 1.0,
+      "source": "llm_client",
+      "target": "llm_client_get_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "llm_client.py",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "llm_client",
+      "target": "llm_client_load_config",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "llm_client.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "llm_client",
+      "target": "llm_client_load_system_prompt",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "llm_client.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "llm_client_rationale_1",
+      "target": "llm_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "optimize_prompt.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "optimize_prompt",
+      "target": "llm_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "test_conversation.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "test_conversation",
+      "target": "llm_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "test_prompts.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "test_prompts",
+      "target": "llm_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "llm_client.py",
+      "source_location": "L35",
+      "weight": 1.0,
+      "source": "llm_client_call",
+      "target": "llm_client_load_config",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "llm_client.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "llm_client_call",
+      "target": "llm_client_load_system_prompt",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "llm_client.py",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "llm_client_call",
+      "target": "llm_client_get_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "llm_client.py",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "llm_client_call",
+      "target": "llm_client_py_str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "llm_client.py",
+      "source_location": "L34",
+      "weight": 1.0,
+      "source": "llm_client_rationale_34",
+      "target": "llm_client_call",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "optimize_prompt.py",
+      "source_location": "L86",
+      "weight": 1.0,
+      "source": "optimize_prompt",
+      "target": "optimize_prompt_model_callback",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "optimize_prompt.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "optimize_prompt_rationale_1",
+      "target": "optimize_prompt",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "optimize_prompt.py",
+      "source_location": "L86",
+      "weight": 1.0,
+      "source": "optimize_prompt_model_callback",
+      "target": "golden",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "optimize_prompt.py",
+      "source_location": "L86",
+      "weight": 1.0,
+      "source": "optimize_prompt_model_callback",
+      "target": "optimize_prompt_py_str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "optimize_prompt.py",
+      "source_location": "L86",
+      "weight": 1.0,
+      "source": "optimize_prompt_model_callback",
+      "target": "prompt",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "optimizer_config.json",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "optimizer_config",
+      "target": "optimizer_config_algorithm",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "optimizer_config.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "optimizer_config",
+      "target": "optimizer_config_iterations",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "optimizer_config.json",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "optimizer_config",
+      "target": "optimizer_config_metric",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "optimizer_config.json",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "optimizer_config",
+      "target": "optimizer_config_threshold",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "test_conversation.py",
+      "source_location": "L52",
+      "weight": 1.0,
+      "source": "test_conversation",
+      "target": "test_conversation_flush_results",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "test_conversation.py",
+      "source_location": "L78",
+      "weight": 1.0,
+      "source": "test_conversation",
+      "target": "test_conversation_run_conversation",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "test_conversation.py",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "test_conversation",
+      "target": "test_conversation_save_result",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "test_conversation.py",
+      "source_location": "L138",
+      "weight": 1.0,
+      "source": "test_conversation",
+      "target": "test_conversation_test_conversation_flow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "test_conversation.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "test_conversation_rationale_1",
+      "target": "test_conversation",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "test_conversation.py",
+      "source_location": "L164",
+      "weight": 1.0,
+      "source": "test_conversation_test_conversation_flow",
+      "target": "test_conversation_save_result",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "test_conversation.py",
+      "source_location": "L79",
+      "weight": 1.0,
+      "source": "test_conversation_rationale_79",
+      "target": "test_conversation_run_conversation",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "test_conversation.py",
+      "source_location": "L146",
+      "weight": 1.0,
+      "source": "test_conversation_test_conversation_flow",
+      "target": "test_conversation_run_conversation",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "test_prompts.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "test_prompts",
+      "target": "test_prompts_flush_results",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "test_prompts.py",
+      "source_location": "L34",
+      "weight": 1.0,
+      "source": "test_prompts",
+      "target": "test_prompts_save_result",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "test_prompts.py",
+      "source_location": "L68",
+      "weight": 1.0,
+      "source": "test_prompts",
+      "target": "test_prompts_test_answer_relevancy",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "test_prompts.py",
+      "source_location": "L98",
+      "weight": 1.0,
+      "source": "test_prompts",
+      "target": "test_prompts_test_custom_geval",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "test_prompts.py",
+      "source_location": "L83",
+      "weight": 1.0,
+      "source": "test_prompts",
+      "target": "test_prompts_test_hallucination",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "test_prompts.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "test_prompts_rationale_1",
+      "target": "test_prompts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "test_prompts.py",
+      "source_location": "L78",
+      "weight": 1.0,
+      "source": "test_prompts_test_answer_relevancy",
+      "target": "test_prompts_save_result",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "test_prompts.py",
+      "source_location": "L113",
+      "weight": 1.0,
+      "source": "test_prompts_test_custom_geval",
+      "target": "test_prompts_save_result",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "test_prompts.py",
+      "source_location": "L93",
+      "weight": 1.0,
+      "source": "test_prompts_test_hallucination",
+      "target": "test_prompts_save_result",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "test_tools.py",
+      "source_location": "L35",
+      "weight": 1.0,
+      "source": "test_tools",
+      "target": "test_tools_flush_results",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "test_tools.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "test_tools",
+      "target": "test_tools_save_result",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "test_tools.py",
+      "source_location": "L64",
+      "weight": 1.0,
+      "source": "test_tools",
+      "target": "test_tools_test_tool_correctness",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "test_tools.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "test_tools_rationale_1",
+      "target": "test_tools",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "test_tools.py",
+      "source_location": "L73",
+      "weight": 1.0,
+      "source": "test_tools_test_tool_correctness",
+      "target": "test_tools_save_result",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "dashboard.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_dashboard",
+      "target": "revnyx_deep_eval_conversation_goldens"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "dashboard.py",
+      "source_location": null,
+      "weight": 0.5,
+      "source": "revnyx_deep_eval_dashboard",
+      "target": "revnyx_deep_eval_logo"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "dashboard.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_dashboard",
+      "target": "revnyx_deep_eval_optimizer_config"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "dashboard.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_dashboard",
+      "target": "revnyx_deep_eval_results"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "dashboard.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_dashboard",
+      "target": "revnyx_deep_eval_tool_goldens"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "optimize_prompt.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_optimize_prompt",
+      "target": "concept_gepa_algorithm"
+    },
+    {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "optimize_prompt.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_optimize_prompt",
+      "target": "concept_prompt_optimization"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "optimize_prompt.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_optimize_prompt",
+      "target": "revnyx_deep_eval_llm_client_load_config"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "optimize_prompt.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_optimize_prompt",
+      "target": "revnyx_deep_eval_optimizer_config"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "optimize_prompt.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_optimize_prompt",
+      "target": "revnyx_deep_eval_results"
+    },
+    {
+      "relation": "implements",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "test_prompts.py",
+      "source_location": null,
+      "weight": 0.8,
+      "source": "revnyx_deep_eval_test_prompts",
+      "target": "concept_llm_as_judge"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "test_prompts.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_test_prompts",
+      "target": "revnyx_deep_eval_llm_client_call"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "test_prompts.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_test_prompts",
+      "target": "revnyx_deep_eval_results"
+    },
+    {
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "test_prompts.py",
+      "source_location": null,
+      "weight": 0.7,
+      "source": "revnyx_deep_eval_test_prompts",
+      "target": "revnyx_deep_eval_test_conversation"
+    },
+    {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "test_tools.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_test_tools",
+      "target": "concept_tool_correctness"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "test_tools.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_test_tools",
+      "target": "revnyx_deep_eval_results"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "test_tools.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_test_tools",
+      "target": "revnyx_deep_eval_tool_goldens"
+    },
+    {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "test_conversation.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_test_conversation",
+      "target": "concept_conversation_flow_testing"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "test_conversation.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_test_conversation",
+      "target": "revnyx_deep_eval_conversation_goldens"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "test_conversation.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_test_conversation",
+      "target": "revnyx_deep_eval_llm_client_get_client"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "test_conversation.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_test_conversation",
+      "target": "revnyx_deep_eval_llm_client_load_config"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "test_conversation.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_test_conversation",
+      "target": "revnyx_deep_eval_llm_client_load_system_prompt"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "test_conversation.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_test_conversation",
+      "target": "revnyx_deep_eval_results"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "llm_client.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_llm_client_load_config",
+      "target": "revnyx_deep_eval_config"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "DEEPEVAL_REFERENCE.txt",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_deepeval_reference",
+      "target": "concept_golden"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "DEEPEVAL_REFERENCE.txt",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_deepeval_reference",
+      "target": "concept_llm_as_judge"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "DEEPEVAL_REFERENCE.txt",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_deepeval_reference",
+      "target": "concept_prompt_optimization"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "DEEPEVAL_REFERENCE.txt",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_deepeval_reference",
+      "target": "concept_tool_correctness"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "llm_client.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_llm_client_call",
+      "target": "revnyx_deep_eval_llm_client_get_client"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "llm_client.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_llm_client_call",
+      "target": "revnyx_deep_eval_llm_client_load_config"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "llm_client.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_llm_client_call",
+      "target": "revnyx_deep_eval_llm_client_load_system_prompt"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "optimize_prompt.py",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "revnyx_deep_eval_optimize_prompt_model_callback",
+      "target": "revnyx_deep_eval_llm_client_call"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "test_conversation.py",
+      "source_location": null,
+      "weight": 0.8,
+      "source": "concept_conversation_flow_testing",
+      "target": "concept_hinglish_voice_agent"
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "evaluation_pipeline",
+      "label": "Evaluation Pipeline (Test -> LLM Client -> Results)",
+      "nodes": [
+        "revnyx_deep_eval_test_prompts",
+        "revnyx_deep_eval_test_tools",
+        "revnyx_deep_eval_test_conversation",
+        "revnyx_deep_eval_llm_client",
+        "revnyx_deep_eval_results"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "dashboard.py"
+    },
+    {
+      "id": "dashboard_orchestration",
+      "label": "Dashboard Orchestrates All Test Types",
+      "nodes": [
+        "revnyx_deep_eval_dashboard",
+        "revnyx_deep_eval_test_prompts",
+        "revnyx_deep_eval_test_tools",
+        "revnyx_deep_eval_test_conversation",
+        "revnyx_deep_eval_optimize_prompt"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "dashboard.py"
+    },
+    {
+      "id": "golden_datasets",
+      "label": "Golden Test Datasets",
+      "nodes": [
+        "revnyx_deep_eval_conversation_goldens",
+        "revnyx_deep_eval_tool_goldens",
+        "concept_golden"
+      ],
+      "relation": "implement",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "DEEPEVAL_REFERENCE.txt"
+    }
+  ],
+  "built_at_commit": "50c9a417cc2f5afdb35a20a52961191ce511eb46"
+}

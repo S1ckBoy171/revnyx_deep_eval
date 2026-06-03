@@ -37,11 +37,12 @@ _test_results = []
 _start_time = time.time()
 
 
-def _save_result(scenario, turn_idx, input_text, metric_name, score, passed, reason):
+def _save_result(scenario, turn_idx, input_text, metric_name, score, passed, reason, output_text=""):
     _test_results.append({
         "scenario": scenario,
         "turn": turn_idx,
         "input": input_text,
+        "output": output_text,
         "metric": metric_name,
         "score": score,
         "passed": passed,
@@ -146,9 +147,10 @@ def test_conversation_flow(conv):
     turns = run_conversation(conv)
 
     # Build full conversation context for evaluation
-    full_input = "\n".join([f"User: {t['user']}\nAgent: {t['agent']}" for t in turns])
-    # Evaluate the last agent response with full context
-    last_agent = turns[-1]["agent"] if turns else ""
+    full_input = "\n".join([f"User: {t['user']}" for t in turns])
+    full_output = "\n".join([f"Agent: {t['agent']}" for t in turns])
+
+    failures = []
 
     for criterion in criteria:
         metric = METRICS_MAP.get(criterion)
@@ -157,14 +159,15 @@ def test_conversation_flow(conv):
 
         test_case = LLMTestCase(
             input=full_input,
-            actual_output=last_agent,
+            actual_output=full_output,
         )
         metric.measure(test_case)
         passed = metric.score >= 0.7
-        _save_result(scenario, len(turns), full_input[:100], metric.name, metric.score, passed, metric.reason)
+        _save_result(scenario, len(turns), full_input, metric.name, metric.score, passed, metric.reason, full_output)
         print(f"  [{metric.name}] Score: {metric.score:.2f} {'PASS' if passed else 'FAIL'}")
         sys.stdout.flush()
-        assert_test(test_case, [metric])
+        if not passed:
+            failures.append(f"{metric.name}: {metric.score:.2f}")
 
     # Also evaluate each individual turn for language compliance
     for i, turn in enumerate(turns):
@@ -174,7 +177,11 @@ def test_conversation_flow(conv):
         )
         language_metric.measure(test_case)
         passed = language_metric.score >= 0.7
-        _save_result(scenario, i + 1, turn["user"][:50], "LanguageCompliance (Turn " + str(i+1) + ")", language_metric.score, passed, language_metric.reason)
+        _save_result(scenario, i + 1, turn["user"], "LanguageCompliance (Turn " + str(i+1) + ")", language_metric.score, passed, language_metric.reason, turn["agent"])
         if not passed:
+            failures.append(f"LanguageCompliance Turn {i+1}: {language_metric.score:.2f}")
             print(f"  [Turn {i+1} Language] FAIL ({language_metric.score:.2f}): {language_metric.reason[:80]}")
             sys.stdout.flush()
+
+    if failures:
+        pytest.fail(f"Failed metrics: {', '.join(failures)}")
