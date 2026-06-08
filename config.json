@@ -1,5 +1,124 @@
 {
   "model": "gpt-4o-mini",
+  "optimizer_model": "gpt-4o",
   "temperature": 0.3,
-  "max_tokens": 1024
+  "max_tokens": 2048,
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "switch_language_tool",
+        "description": "Switch the voice and transcription pipeline to a different language.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "language": {
+              "type": "string",
+              "description": "The language to switch to (e.g. 'english', 'hindi', 'tamil')"
+            }
+          },
+          "required": ["language"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "schedule_callback_tool",
+        "description": "Schedule a callback for the creator at a specific time.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "time": {
+              "type": "string",
+              "description": "When to schedule the callback (e.g. 'tomorrow 9am', 'in 2 hours')"
+            },
+            "reason": {
+              "type": "string",
+              "description": "Reason for the callback"
+            }
+          },
+          "required": ["time"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "transfer_call_tool",
+        "description": "Transfer the current call to a human team member.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "description": "Reason for transfer"
+            }
+          },
+          "required": ["reason"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "add_to_do_not_call_tool",
+        "description": "Add the creator to the Do Not Call list so they won't receive future calls.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "description": "Reason for adding to DNC list"
+            }
+          },
+          "required": ["reason"]
+        }
+      }
+    }
+  ],
+  "template_variables": {
+    "inactive": {
+      "participantName": "प्रिया",
+      "cohort": "inactive",
+      "gender": "female",
+      "cohortDetail": "",
+      "nudgeContext": ""
+    },
+    "performance_drop": {
+      "participantName": "अनीता",
+      "cohort": "performance_drop",
+      "gender": "female",
+      "cohortDetail": "",
+      "nudgeContext": ""
+    },
+    "nudge": {
+      "participantName": "सोनिया",
+      "cohort": "nudge",
+      "gender": "female",
+      "cohortDetail": "",
+      "nudgeContext": "आपके area में अभी fifteen creators online हैं और calls waiting में हैं"
+    },
+    "campaign": {
+      "participantName": "रेखा",
+      "cohort": "campaign",
+      "gender": "female",
+      "cohortDetail": "इस weekend special campaign है — double earnings on Saturday and Sunday",
+      "nudgeContext": ""
+    },
+    "warning": {
+      "participantName": "मीरा",
+      "cohort": "warning",
+      "gender": "female",
+      "cohortDetail": "",
+      "nudgeContext": ""
+    },
+    "d1_d2": {
+      "participantName": "काजल",
+      "cohort": "d1_d2",
+      "gender": "female",
+      "cohortDetail": "",
+      "nudgeContext": ""
+    }
+  }
 }

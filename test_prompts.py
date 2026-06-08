@@ -3,8 +3,13 @@ Prompt quality evaluation tests.
 Run with: deepeval test run test_prompts.py
 or
           deepeval test run test_prompts.py -- --tb=short
-or
-          deepeval test run test_prompts.py -- --tb=line
+
+Evaluates single-turn responses against multiple metrics:
+- AnswerRelevancy
+- Hallucination (stricter threshold)
+- LanguageCompliance (Devanagari, female verb forms, no romanized Hindi)
+- NumberFormatCompliance (English words only, no digits/symbols)
+- Correctness (GEval against expected_output)
 """
 
 import json
@@ -64,51 +69,89 @@ def _flush_results():
 atexit.register(_flush_results)
 
 
+# Domain-specific metrics
+language_compliance_metric = GEval(
+    name="LanguageCompliance",
+    criteria=(
+        "The response uses proper Hinglish: Hindi words in Devanagari script, English words in English script. "
+        "Never romanized Hindi (e.g. 'theek hai' is WRONG, 'ठीक है' is correct). "
+        "Uses female verb forms for self-reference (समझ गई not समझ गया, बोल रही हूँ not बोल रहा हूँ). "
+        "Acronyms are in Devanagari (पैन not PAN, ओटीपी not OTP, आईएफएससी not IFSC, केवाईसी not KYC). "
+        "Never uses 'sir', 'ma'am', 'bhaiya', 'didi'. Addresses creator as 'आप'."
+    ),
+    evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
+    threshold=0.85,
+)
+
+number_format_metric = GEval(
+    name="NumberFormatCompliance",
+    criteria=(
+        "All numbers, amounts, durations, and counts are expressed in English words only "
+        "(e.g. 'four to five working days', 'twenty four hours', 'five hundred rupees'). "
+        "Never uses digits (4-5, 24, 500) or symbols (₹, Rs, INR). "
+        "Only exception: 'दो–तीन minute' is permitted for 2-3 minutes. "
+        "Money uses 'rupees' (English) or 'रुपये' (Hinglish) — never ₹ symbol."
+    ),
+    evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
+    threshold=0.85,
+)
+
+correctness_metric = GEval(
+    name="Correctness",
+    criteria=(
+        "The response accurately addresses the user's issue with correct information matching the expected output. "
+        "It provides the right resolution steps, uses appropriate empathy, and ends with the standard follow-up question. "
+        "The information shared must be factually consistent with the expected output — no invented features or wrong procedures."
+    ),
+    evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
+    threshold=0.8,
+)
+
+forbidden_phrases_metric = GEval(
+    name="ForbiddenPhraseAbsence",
+    criteria=(
+        "The response must NOT contain: "
+        "1) 'I can't continue this call' or any variant of refusing to continue. "
+        "2) Threatening language about banning or blocking earnings as punishment. "
+        "3) The creator's name after the opening (name is for identity confirmation only). "
+        "4) A numbered menu of issue categories. "
+        "5) Masculine self-referential verb forms (समझ गया, कर दिया मैंने, बोल दिया, सुन नहीं पाया). "
+        "If none of these are present, the score should be 1.0."
+    ),
+    evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT],
+    threshold=0.9,
+)
+
+
 @pytest.mark.parametrize("golden", goldens, ids=[g["input"][:40] for g in goldens])
-def test_answer_relevancy(golden):
+def test_prompt_quality(golden):
+    """Single test per golden that evaluates against all metrics with one LLM call."""
     actual_output = llm_client.call(golden["input"])
+
     test_case = LLMTestCase(
         input=golden["input"],
         actual_output=actual_output,
         expected_output=golden["expected_output"],
         context=golden.get("context"),
     )
-    metric = AnswerRelevancyMetric(threshold=0.7)
-    metric.measure(test_case)
-    _save_result(golden["input"], "AnswerRelevancy", metric.score, metric.score >= 0.7, metric.reason)
-    assert_test(test_case, [metric])
 
+    metrics = [
+        AnswerRelevancyMetric(threshold=0.8),
+        HallucinationMetric(threshold=0.7),
+        correctness_metric,
+        language_compliance_metric,
+        number_format_metric,
+        forbidden_phrases_metric,
+    ]
 
-@pytest.mark.parametrize("golden", goldens, ids=[g["input"][:40] for g in goldens])
-def test_hallucination(golden):
-    actual_output = llm_client.call(golden["input"])
-    test_case = LLMTestCase(
-        input=golden["input"],
-        actual_output=actual_output,
-        expected_output=golden["expected_output"],
-        context=golden.get("context"),
-    )
-    metric = HallucinationMetric(threshold=0.5)
-    metric.measure(test_case)
-    _save_result(golden["input"], "Hallucination", metric.score, metric.score >= 0.5, metric.reason)
-    assert_test(test_case, [metric])
+    failures = []
+    for metric in metrics:
+        metric.measure(test_case)
+        passed = metric.score >= metric.threshold
+        _save_result(golden["input"], metric.__class__.__name__ if hasattr(metric, '__class__') else metric.name,
+                     metric.score, passed, metric.reason)
+        if not passed:
+            failures.append(f"{metric.name}: {metric.score:.2f}")
 
-
-@pytest.mark.parametrize("golden", goldens, ids=[g["input"][:40] for g in goldens])
-def test_custom_geval(golden):
-    actual_output = llm_client.call(golden["input"])
-    test_case = LLMTestCase(
-        input=golden["input"],
-        actual_output=actual_output,
-        expected_output=golden["expected_output"],
-        context=golden.get("context"),
-    )
-    metric = GEval(
-        name="Helpfulness",
-        criteria="The response is helpful, accurate, and directly addresses the user's question without unnecessary information.",
-        evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
-        threshold=0.7,
-    )
-    metric.measure(test_case)
-    _save_result(golden["input"], "Helpfulness (GEval)", metric.score, metric.score >= 0.7, metric.reason)
-    assert_test(test_case, [metric])
+    if failures:
+        pytest.fail(f"Failed metrics: {', '.join(failures)}")
