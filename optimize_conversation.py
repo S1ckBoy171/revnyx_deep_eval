@@ -23,7 +23,7 @@ from deepeval.optimizer.algorithms.simba.simba import SIMBA
 from deepeval.prompt import Prompt
 from deepeval.dataset import Golden
 from deepeval.metrics import GEval
-from deepeval.test_case import LLMTestCase, LLMTestCaseParams
+from deepeval.test_case import LLMTestCase, SingleTurnParams
 
 import llm_client
 
@@ -76,22 +76,22 @@ if len(goldens) < 2:
     sys.exit(1)
 
 # ---------------------------------------------------------------------------
-# Map eval_params strings to LLMTestCaseParams enum values
+# Map eval_params strings to SingleTurnParams enum values
 # ---------------------------------------------------------------------------
 
 PARAM_MAP = {
-    "INPUT": LLMTestCaseParams.INPUT,
-    "ACTUAL_OUTPUT": LLMTestCaseParams.ACTUAL_OUTPUT,
-    "EXPECTED_OUTPUT": LLMTestCaseParams.EXPECTED_OUTPUT,
-    "CONTEXT": LLMTestCaseParams.CONTEXT,
-    "RETRIEVAL_CONTEXT": LLMTestCaseParams.RETRIEVAL_CONTEXT,
+    "INPUT": SingleTurnParams.INPUT,
+    "ACTUAL_OUTPUT": SingleTurnParams.ACTUAL_OUTPUT,
+    "EXPECTED_OUTPUT": SingleTurnParams.EXPECTED_OUTPUT,
+    "CONTEXT": SingleTurnParams.CONTEXT,
+    "RETRIEVAL_CONTEXT": SingleTurnParams.RETRIEVAL_CONTEXT,
 }
 
 
 def _build_eval_params(param_list):
-    """Convert a list of param name strings to LLMTestCaseParams."""
+    """Convert a list of param name strings to SingleTurnParams."""
     if not param_list:
-        return [LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT]
+        return [SingleTurnParams.INPUT, SingleTurnParams.ACTUAL_OUTPUT]
     return [PARAM_MAP[p] for p in param_list if p in PARAM_MAP]
 
 
@@ -133,7 +133,7 @@ if not metrics:
         GEval(
             name="FlowCorrectness",
             criteria="Agent follows a logical conversation flow, responds appropriately to user messages, and handles the conversation professionally.",
-            evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
+            evaluation_params=[SingleTurnParams.INPUT, SingleTurnParams.ACTUAL_OUTPUT],
             threshold=0.75,
         )
     ]

@@ -14,7 +14,7 @@ import time
 import atexit
 import pytest
 from datetime import datetime, timezone
-from deepeval.test_case import LLMTestCase, LLMTestCaseParams
+from deepeval.test_case import LLMTestCase, SingleTurnParams
 from deepeval.metrics import AnswerRelevancyMetric, GEval, HallucinationMetric
 
 import llm_client
@@ -33,14 +33,14 @@ with open("goldens.json") as f:
     goldens = json.load(f)
 
 # ---------------------------------------------------------------------------
-# Map eval_params strings to LLMTestCaseParams enum values
+# Map eval_params strings to SingleTurnParams enum values
 # ---------------------------------------------------------------------------
 
 PARAM_MAP = {
-    "INPUT": LLMTestCaseParams.INPUT,
-    "ACTUAL_OUTPUT": LLMTestCaseParams.ACTUAL_OUTPUT,
-    "EXPECTED_OUTPUT": LLMTestCaseParams.EXPECTED_OUTPUT,
-    "CONTEXT": LLMTestCaseParams.CONTEXT,
+    "INPUT": SingleTurnParams.INPUT,
+    "ACTUAL_OUTPUT": SingleTurnParams.ACTUAL_OUTPUT,
+    "EXPECTED_OUTPUT": SingleTurnParams.EXPECTED_OUTPUT,
+    "CONTEXT": SingleTurnParams.CONTEXT,
 }
 
 # ---------------------------------------------------------------------------

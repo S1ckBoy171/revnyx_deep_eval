@@ -17,7 +17,7 @@ import atexit
 from datetime import datetime, timezone
 import pytest
 from deepeval import assert_test
-from deepeval.test_case import LLMTestCase, LLMTestCaseParams
+from deepeval.test_case import LLMTestCase, SingleTurnParams
 from deepeval.metrics import GEval
 
 import llm_client
@@ -46,20 +46,20 @@ GENERIC_FLOW_CRITERIA = (
     "and handles the conversation professionally."
 )
 
-# Map of eval_params strings to LLMTestCaseParams
+# Map of eval_params strings to SingleTurnParams
 PARAM_MAP = {
-    "INPUT": LLMTestCaseParams.INPUT,
-    "ACTUAL_OUTPUT": LLMTestCaseParams.ACTUAL_OUTPUT,
-    "EXPECTED_OUTPUT": LLMTestCaseParams.EXPECTED_OUTPUT,
-    "CONTEXT": LLMTestCaseParams.CONTEXT,
-    "RETRIEVAL_CONTEXT": LLMTestCaseParams.RETRIEVAL_CONTEXT,
+    "INPUT": SingleTurnParams.INPUT,
+    "ACTUAL_OUTPUT": SingleTurnParams.ACTUAL_OUTPUT,
+    "EXPECTED_OUTPUT": SingleTurnParams.EXPECTED_OUTPUT,
+    "CONTEXT": SingleTurnParams.CONTEXT,
+    "RETRIEVAL_CONTEXT": SingleTurnParams.RETRIEVAL_CONTEXT,
 }
 
 
 def _build_eval_params(param_list):
-    """Convert a list of param name strings to LLMTestCaseParams."""
+    """Convert a list of param name strings to SingleTurnParams."""
     if not param_list:
-        return [LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT]
+        return [SingleTurnParams.INPUT, SingleTurnParams.ACTUAL_OUTPUT]
     return [PARAM_MAP[p] for p in param_list if p in PARAM_MAP]
 
 
@@ -79,7 +79,7 @@ def _build_flow_metric(cohort_name):
     return GEval(
         name="FlowCorrectness",
         criteria=criteria,
-        evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
+        evaluation_params=[SingleTurnParams.INPUT, SingleTurnParams.ACTUAL_OUTPUT],
         threshold=0.75,
     )
 
