@@ -76,49 +76,5 @@
         }
       }
     }
-  ],
-  "template_variables": {
-    "inactive": {
-      "participantName": "प्रिया",
-      "cohort": "inactive",
-      "gender": "female",
-      "cohortDetail": "",
-      "nudgeContext": ""
-    },
-    "performance_drop": {
-      "participantName": "अनीता",
-      "cohort": "performance_drop",
-      "gender": "female",
-      "cohortDetail": "",
-      "nudgeContext": ""
-    },
-    "nudge": {
-      "participantName": "सोनिया",
-      "cohort": "nudge",
-      "gender": "female",
-      "cohortDetail": "",
-      "nudgeContext": "आपके area में अभी fifteen creators online हैं और calls waiting में हैं"
-    },
-    "campaign": {
-      "participantName": "रेखा",
-      "cohort": "campaign",
-      "gender": "female",
-      "cohortDetail": "इस weekend special campaign है — double earnings on Saturday and Sunday",
-      "nudgeContext": ""
-    },
-    "warning": {
-      "participantName": "मीरा",
-      "cohort": "warning",
-      "gender": "female",
-      "cohortDetail": "",
-      "nudgeContext": ""
-    },
-    "d1_d2": {
-      "participantName": "काजल",
-      "cohort": "d1_d2",
-      "gender": "female",
-      "cohortDetail": "",
-      "nudgeContext": ""
-    }
-  }
+  ]
 }
