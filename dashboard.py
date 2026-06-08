@@ -375,8 +375,21 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
       <div class="card-title" style="margin:0;">Tool Test Cases</div>
       <span class="goldens-count" id="toolGoldensCount">(0)</span>
     </div>
-    <div><button class="btn btn-sm" onclick="addToolGolden()">+ Add</button></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-sm" onclick="toggleToolDefSection()">Manage Tools</button>
+      <button class="btn btn-sm" onclick="addToolGolden()">+ Add</button>
+    </div>
   </div>
+
+  <div class="ai-section" id="toolDefSection">
+    <div class="ai-label">Tool Definitions (from config.json)</div>
+    <div id="toolDefsContainer"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-sm" onclick="addToolDef()">+ Add Tool</button>
+      <button class="btn btn-sm btn-gold" onclick="saveToolDefs()">Save Tools</button>
+    </div>
+  </div>
+
   <div id="toolGoldensContainer"></div>
   <div class="goldens-empty" id="toolGoldensEmpty">No tool test cases yet.</div>
   <button class="btn btn-sm btn-gold" id="btnSaveToolGoldens" onclick="saveToolGoldens()" style="display:none;margin-top:12px;">Save Tool Tests</button>
@@ -466,11 +479,13 @@ let toolGoldens = [];
 let convGoldens = [];
 let running = false;
 let evalConfig = {};
+let toolDefs = [];
 
 fetch('/api/eval_config').then(r => r.json()).then(data => { evalConfig = data; renderMetrics(); }).catch(() => renderMetrics());
 fetch('/api/goldens').then(r => r.json()).then(data => { goldens = data; renderGoldens(); }).catch(() => renderGoldens());
 fetch('/api/tool_goldens').then(r => r.json()).then(data => { toolGoldens = data; renderToolGoldens(); }).catch(() => renderToolGoldens());
 fetch('/api/conv_goldens').then(r => r.json()).then(data => { convGoldens = data; renderConvGoldens(); }).catch(() => renderConvGoldens());
+fetch('/api/tool_defs').then(r => r.json()).then(data => { toolDefs = data; renderToolDefs(); }).catch(() => renderToolDefs());
 fetch('/api/optimizer_config').then(r => r.json()).then(data => {
   document.getElementById('optAlgo').value = data.algorithm || 'GEPA';
   document.getElementById('optIter').value = data.iterations || 10;
@@ -677,6 +692,43 @@ function saveToolGoldens() {
   const clean = toolGoldens.filter(g => g.input.trim()).map(g => ({ input: g.input, actual_output: g.actual_output, tools_called: g.tools_called || [], expected_tools: g.expected_tools || [] }));
   fetch('/api/tool_goldens', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(clean) })
   .then(r => r.json()).then(data => { if (data.success) { toolGoldens = clean; renderToolGoldens(); showQuickStatus('Tool tests saved!'); } });
+}
+
+// Tool Definitions
+function toggleToolDefSection() { document.getElementById('toolDefSection').classList.toggle('visible'); }
+function renderToolDefs() {
+  const container = document.getElementById('toolDefsContainer');
+  if (!toolDefs.length) { container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:12px 0;">No tool definitions. Add one to get started.</div>'; return; }
+  container.innerHTML = toolDefs.map((td, i) => {
+    const fn = td.function || {};
+    const paramsStr = JSON.stringify(fn.parameters || {type:"object",properties:{},required:[]}, null, 2);
+    return '<div class="golden-item">' +
+      '<button class="golden-remove" onclick="removeToolDef(' + i + ')">&times;</button>' +
+      '<div class="golden-field"><div class="golden-label">Tool Name</div>' +
+      '<input class="golden-input" value="' + escAttr(fn.name || '') + '" onchange="updateToolDef(' + i + ',&quot;name&quot;,this.value)" placeholder="e.g. schedule_callback_tool"></div>' +
+      '<div class="golden-field"><div class="golden-label">Description</div>' +
+      '<input class="golden-input" value="' + escAttr(fn.description || '') + '" onchange="updateToolDef(' + i + ',&quot;description&quot;,this.value)" placeholder="What the tool does..."></div>' +
+      '<div class="golden-field"><div class="golden-label">Parameters JSON</div>' +
+      '<textarea class="golden-textarea" onchange="updateToolDef(' + i + ',&quot;parameters&quot;,this.value)" style="min-height:80px;">' + escHtml(paramsStr) + '</textarea></div>' +
+    '</div>';
+  }).join('');
+}
+function addToolDef() {
+  toolDefs.push({type: "function", function: {name: "", description: "", parameters: {type: "object", properties: {}, required: []}}});
+  renderToolDefs();
+  const items = document.querySelectorAll('#toolDefsContainer .golden-item');
+  const last = items[items.length - 1];
+  if (last) { last.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => { last.querySelector('.golden-input').focus(); }, 300); }
+}
+function removeToolDef(i) { toolDefs.splice(i, 1); renderToolDefs(); }
+function updateToolDef(i, field, value) {
+  if (!toolDefs[i].function) toolDefs[i].function = {};
+  if (field === 'parameters') { try { toolDefs[i].function.parameters = JSON.parse(value); } catch(e) {} }
+  else { toolDefs[i].function[field] = value; }
+}
+function saveToolDefs() {
+  fetch('/api/tool_defs', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(toolDefs) })
+  .then(r => r.json()).then(data => { if (data.success) { showQuickStatus('Tool definitions saved!'); } });
 }
 
 // Conversation Goldens
@@ -1427,6 +1479,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     self.wfile.write(f.read().encode())
             else:
                 self.wfile.write(b'{"algorithm":"GEPA","iterations":10,"threshold":0.85}')
+        elif self.path == "/api/tool_defs":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            if os.path.exists("config.json"):
+                with open("config.json") as f:
+                    cfg = json.load(f)
+                self.wfile.write(json.dumps(cfg.get("tools", [])).encode())
+            else:
+                self.wfile.write(b"[]")
         else:
             self.send_response(404)
             self.end_headers()
@@ -1490,6 +1552,16 @@ Return ONLY the JSON array, no other text."""
                 self._json_response({"success": True, "goldens": generated})
             except Exception as e:
                 self._json_response({"success": False, "message": str(e)})
+
+        elif self.path == "/api/tool_defs":
+            cfg = {}
+            if os.path.exists("config.json"):
+                with open("config.json") as f:
+                    cfg = json.load(f)
+            cfg["tools"] = body
+            with open("config.json", "w") as f:
+                json.dump(cfg, f, indent=2)
+            self._json_response({"success": True})
 
         elif self.path == "/api/conv_goldens":
             with open("conversation_goldens.json", "w") as f:
