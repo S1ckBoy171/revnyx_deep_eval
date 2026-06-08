@@ -335,7 +335,10 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
   <div class="btn-group">
     <button class="btn btn-sm" onclick="addCustomMetric()">+ Add Metric</button>
     <button class="btn btn-sm btn-gold" onclick="saveEvalConfig()">Save Metrics</button>
+    <button class="btn btn-sm btn-success" id="btnTestConfig" onclick="testConfig()">Test Config</button>
   </div>
+  <div class="status" id="testConfigStatus"></div>
+  <div class="log-box" id="testConfigResults"></div>
 </div>
 
 <!-- Goldens -->
@@ -650,6 +653,53 @@ function saveEvalConfig() {
   };
   fetch('/api/eval_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(config) })
   .then(r => r.json()).then(d => { if (d.success) { evalConfig = config; showQuickStatus('Evaluation metrics saved!'); } });
+}
+
+// Test Config
+function testConfig() {
+  document.getElementById('btnTestConfig').disabled = true;
+  const status = document.getElementById('testConfigStatus');
+  const results = document.getElementById('testConfigResults');
+  status.className = 'status visible status-running';
+  status.innerHTML = '<span class="spinner"></span>Testing configuration...';
+  results.classList.remove('visible');
+
+  fetch('/api/test_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({}) })
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('btnTestConfig').disabled = false;
+    if (data.success) {
+      status.className = 'status visible status-done';
+      status.innerHTML = '&#10003; Configuration valid! ' + data.metrics_count + ' metrics loaded.';
+      let html = '';
+      if (data.results && data.results.length) {
+        html += '<div style="margin-top:8px;">';
+        data.results.forEach(r => {
+          const cls = r.passed ? 'score-pass' : 'score-fail';
+          html += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border-subtle);">';
+          html += '<span style="font-size:12px;">' + r.metric + '</span>';
+          html += '<span class="score ' + cls + '" style="font-size:12px;">' + (r.score != null ? r.score.toFixed(2) : '-') + '</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+      if (data.warnings && data.warnings.length) {
+        html += '<div style="margin-top:8px;color:var(--accent);font-size:11px;">';
+        data.warnings.forEach(w => { html += '<div>⚠ ' + w + '</div>'; });
+        html += '</div>';
+      }
+      results.innerHTML = html;
+      results.classList.add('visible');
+    } else {
+      status.className = 'status visible status-error';
+      status.innerHTML = '&#10007; ' + (data.message || 'Configuration test failed');
+    }
+  })
+  .catch(err => {
+    document.getElementById('btnTestConfig').disabled = false;
+    status.className = 'status visible status-error';
+    status.innerHTML = '&#10007; Error: ' + err.message;
+  });
 }
 
 // Tool Goldens
@@ -1651,6 +1701,125 @@ Return ONLY the JSON object, no other text."""
                     content = content.rsplit("```", 1)[0]
                 scenario = json.loads(content)
                 self._json_response({"success": True, "scenario": scenario})
+            except Exception as e:
+                self._json_response({"success": False, "message": str(e)})
+
+        elif self.path == "/api/test_config":
+            try:
+                # Load eval_config
+                eval_cfg = {}
+                if os.path.exists("eval_config.json"):
+                    with open("eval_config.json") as f:
+                        eval_cfg = json.load(f)
+
+                # Load config.json
+                model_cfg = {}
+                if os.path.exists("config.json"):
+                    with open("config.json") as f:
+                        model_cfg = json.load(f)
+
+                # Validate API key
+                api_key = os.getenv("OPENAI_API_KEY")
+                if not api_key:
+                    self._json_response({"success": False, "message": "OPENAI_API_KEY not set"})
+                    return
+
+                # Count metrics
+                warnings = []
+                builtin_metrics = eval_cfg.get("builtin_metrics", {})
+                custom_metrics = eval_cfg.get("custom_metrics", [])
+
+                enabled_builtins = []
+                ar = builtin_metrics.get("answer_relevancy", {})
+                if ar.get("enabled", True):
+                    enabled_builtins.append(("AnswerRelevancy", ar.get("threshold", 0.8)))
+                hal = builtin_metrics.get("hallucination", {})
+                if hal.get("enabled", True):
+                    enabled_builtins.append(("Hallucination", hal.get("threshold", 0.7)))
+
+                if not custom_metrics:
+                    warnings.append("No custom metrics configured — only builtins will run")
+
+                metrics_count = len(enabled_builtins) + len(custom_metrics)
+
+                if metrics_count == 0:
+                    self._json_response({"success": False, "message": "No metrics enabled. Enable at least one builtin or add a custom metric."})
+                    return
+
+                # Quick LLM test
+                client = OpenAI(api_key=api_key)
+                test_input = "Hello, this is a test."
+                response = client.chat.completions.create(
+                    model=model_cfg.get("model", "gpt-4o-mini"),
+                    messages=[{"role": "user", "content": test_input}],
+                    max_tokens=150,
+                )
+                actual_output = response.choices[0].message.content.strip()
+
+                # Build metrics and measure
+                results = []
+                try:
+                    from deepeval.metrics import AnswerRelevancyMetric, GEval, HallucinationMetric
+                    from deepeval.test_case import LLMTestCase, LLMTestCaseParams
+
+                    test_case = LLMTestCase(
+                        input=test_input,
+                        actual_output=actual_output,
+                        expected_output="Hello! How can I help you today?",
+                        context=["This is a simple greeting test."]
+                    )
+
+                    for name, threshold in enabled_builtins:
+                        try:
+                            if name == "AnswerRelevancy":
+                                metric = AnswerRelevancyMetric(threshold=threshold)
+                            elif name == "Hallucination":
+                                metric = HallucinationMetric(threshold=threshold)
+                            else:
+                                continue
+                            metric.measure(test_case)
+                            results.append({"metric": name, "score": metric.score, "passed": metric.score >= threshold})
+                        except Exception as me:
+                            results.append({"metric": name, "score": None, "passed": False})
+                            warnings.append(f"{name} metric error: {str(me)[:100]}")
+
+                    for cm in custom_metrics:
+                        try:
+                            eval_params = []
+                            for p in cm.get("eval_params", []):
+                                param_map = {
+                                    "INPUT": LLMTestCaseParams.INPUT,
+                                    "ACTUAL_OUTPUT": LLMTestCaseParams.ACTUAL_OUTPUT,
+                                    "EXPECTED_OUTPUT": LLMTestCaseParams.EXPECTED_OUTPUT,
+                                    "CONTEXT": LLMTestCaseParams.CONTEXT,
+                                }
+                                if p in param_map:
+                                    eval_params.append(param_map[p])
+
+                            metric = GEval(
+                                name=cm.get("name", "Custom"),
+                                criteria=cm.get("criteria", ""),
+                                evaluation_params=eval_params,
+                                threshold=cm.get("threshold", 0.5),
+                            )
+                            metric.measure(test_case)
+                            passed = metric.score >= cm.get("threshold", 0.5)
+                            results.append({"metric": cm.get("name", "Custom"), "score": metric.score, "passed": passed})
+                        except Exception as me:
+                            results.append({"metric": cm.get("name", "Custom"), "score": None, "passed": False})
+                            warnings.append(f"{cm.get('name', 'Custom')} metric error: {str(me)[:100]}")
+
+                except ImportError as ie:
+                    warnings.append(f"DeepEval not fully installed: {str(ie)[:100]}")
+                    # Still return success since LLM call worked
+                    results = []
+
+                self._json_response({
+                    "success": True,
+                    "metrics_count": metrics_count,
+                    "results": results,
+                    "warnings": warnings
+                })
             except Exception as e:
                 self._json_response({"success": False, "message": str(e)})
 
