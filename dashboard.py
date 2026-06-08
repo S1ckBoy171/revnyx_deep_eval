@@ -392,6 +392,7 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
     <div style="display:flex;gap:8px;">
       <button class="btn btn-sm btn-accent" onclick="toggleConvAiSection()"><img src="https://img.icons8.com/?size=100&id=rYb1JFR9WLSh&format=png&color=000000" style="width:14px;height:14px;filter:invert(1);vertical-align:middle;margin-right:4px;">Generate</button>
       <button class="btn btn-sm btn-purple" onclick="toggleTranscriptSection()">From Transcript</button>
+      <button class="btn btn-sm" onclick="toggleCohortSection()">Manage Cohorts</button>
       <button class="btn btn-sm" onclick="addConvGolden()">+ Add Scenario</button>
     </div>
   </div>
@@ -437,6 +438,15 @@ Agent: Perfect, toh aapke liye humara premium plan best rahega..."></textarea>
       <button class="btn btn-sm" onclick="toggleTranscriptSection()">Cancel</button>
     </div>
     <div class="ai-status" id="transcriptAiStatus"><span class="spinner"></span>Processing transcript...</div>
+  </div>
+
+  <div class="ai-section" id="cohortSection">
+    <div class="ai-label">Manage Cohorts &amp; Template Variables</div>
+    <div id="cohortList"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-sm" onclick="addCohort()">+ Add Cohort</button>
+      <button class="btn btn-sm btn-gold" onclick="saveCohorts()">Save Cohorts</button>
+    </div>
   </div>
 
   <div id="convGoldensContainer"></div>
@@ -685,9 +695,10 @@ function renderConvGoldens() {
         <button class="golden-remove" style="position:static;width:20px;height:20px;font-size:11px;" onclick="removeConvTurn(${i},${ti})">&times;</button>
       </div>`;
     }).join('');
-    const cohort = c.cohort || 'inactive';
+    const cohort = c.cohort || '';
     const templateVars = c.template_vars || {};
     const tvDisplay = Object.entries(templateVars).map(([k,v]) => k + ': ' + v).join(', ');
+    const cohortOptions = (evalConfig.cohorts || []).map(ch => '<option value="' + escAttr(ch.name) + '"' + (cohort===ch.name?' selected':'') + '>' + escHtml(ch.name) + '</option>').join('');
     return `<div class="golden-item">
       <button class="golden-remove" onclick="removeConvGolden(${i})">&times;</button>
       <div class="golden-field"><div class="golden-label">Scenario Name</div>
@@ -695,12 +706,8 @@ function renderConvGoldens() {
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
         <div class="golden-field" style="flex:1;min-width:120px;"><div class="golden-label">Cohort</div>
         <select class="golden-input" onchange="convGoldens[${i}].cohort=this.value" style="cursor:pointer;">
-          <option value="inactive" ${cohort==='inactive'?'selected':''}>inactive</option>
-          <option value="performance_drop" ${cohort==='performance_drop'?'selected':''}>performance_drop</option>
-          <option value="d1_d2" ${cohort==='d1_d2'?'selected':''}>d1_d2</option>
-          <option value="nudge" ${cohort==='nudge'?'selected':''}>nudge</option>
-          <option value="campaign" ${cohort==='campaign'?'selected':''}>campaign</option>
-          <option value="warning" ${cohort==='warning'?'selected':''}>warning</option>
+          <option value="">— No cohort —</option>
+          ${cohortOptions}
         </select></div>
         <div class="golden-field" style="flex:2;min-width:200px;"><div class="golden-label">Template Variables <span style="font-weight:300;opacity:0.6">(JSON)</span></div>
         <input class="golden-input" value="${escAttr(JSON.stringify(templateVars))}" onchange="try{convGoldens[${i}].template_vars=JSON.parse(this.value)}catch(e){}" placeholder='{"participantName":"...", "cohort":"..."}'></div>
@@ -749,8 +756,63 @@ function saveConvGoldens() {
 }
 
 // Generate Conversation Goldens
-function toggleConvAiSection() { document.getElementById('convAiSection').classList.toggle('visible'); document.getElementById('transcriptSection').classList.remove('visible'); }
-function toggleTranscriptSection() { document.getElementById('transcriptSection').classList.toggle('visible'); document.getElementById('convAiSection').classList.remove('visible'); }
+function toggleConvAiSection() { document.getElementById('convAiSection').classList.toggle('visible'); document.getElementById('transcriptSection').classList.remove('visible'); document.getElementById('cohortSection').classList.remove('visible'); }
+function toggleTranscriptSection() { document.getElementById('transcriptSection').classList.toggle('visible'); document.getElementById('convAiSection').classList.remove('visible'); document.getElementById('cohortSection').classList.remove('visible'); }
+function toggleCohortSection() { document.getElementById('cohortSection').classList.toggle('visible'); document.getElementById('convAiSection').classList.remove('visible'); document.getElementById('transcriptSection').classList.remove('visible'); renderCohorts(); }
+
+function renderCohorts() {
+  const cohorts = evalConfig.cohorts || [];
+  const container = document.getElementById('cohortList');
+  if (!cohorts.length) { container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:12px 0;">No cohorts defined. Add one to get started.</div>'; return; }
+  container.innerHTML = cohorts.map((ch, i) => {
+    const tvStr = JSON.stringify(ch.template_vars || {}, null, 2);
+    return '<div class="golden-item"><button class="golden-remove" onclick="removeCohort(' + i + ')">&times;</button>' +
+      '<div class="golden-field"><div class="golden-label">Name</div><input class="golden-input" value="' + escAttr(ch.name || '') + '" onchange="updateCohort(' + i + ',&quot;name&quot;,this.value)" placeholder="e.g. inactive"></div>' +
+      '<div class="golden-field"><div class="golden-label">Flow Criteria</div><textarea class="golden-textarea" onchange="updateCohort(' + i + ',&quot;flow_criteria&quot;,this.value)" placeholder="Describe the expected conversation flow for this cohort...">' + escHtml(ch.flow_criteria || '') + '</textarea></div>' +
+      '<div class="golden-field"><div class="golden-label">Template Variables (JSON)</div><textarea class="golden-textarea" onchange="updateCohort(' + i + ',&quot;template_vars&quot;,this.value)" placeholder=&apos;{"participantName": "...", "cohort": "..."}&apos;>' + escHtml(tvStr) + '</textarea></div>' +
+    '</div>';
+  }).join('');
+}
+
+function addCohort() {
+  if (!evalConfig.cohorts) evalConfig.cohorts = [];
+  evalConfig.cohorts.push({ name: '', flow_criteria: '', template_vars: {} });
+  renderCohorts();
+}
+
+function removeCohort(i) {
+  if (!evalConfig.cohorts) return;
+  evalConfig.cohorts.splice(i, 1);
+  renderCohorts();
+  renderConvGoldens();
+}
+
+function updateCohort(i, field, value) {
+  if (!evalConfig.cohorts || !evalConfig.cohorts[i]) return;
+  if (field === 'template_vars') { try { evalConfig.cohorts[i].template_vars = JSON.parse(value); } catch(e) {} }
+  else { evalConfig.cohorts[i][field] = value; }
+}
+
+function saveCohorts() {
+  const config = {
+    builtin_metrics: {
+      answer_relevancy: {
+        enabled: document.getElementById('builtinAnswerRelevancy').checked,
+        threshold: parseFloat(document.getElementById('thresholdAnswerRelevancy').value) || 0.8
+      },
+      hallucination: {
+        enabled: document.getElementById('builtinHallucination').checked,
+        threshold: parseFloat(document.getElementById('thresholdHallucination').value) || 0.7
+      }
+    },
+    custom_metrics: (evalConfig.custom_metrics || []).filter(m => m.name && m.name.trim()),
+    cohorts: evalConfig.cohorts || [],
+    template_variables: evalConfig.template_variables || {},
+    conversation_metrics: evalConfig.conversation_metrics || []
+  };
+  fetch('/api/eval_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(config) })
+  .then(r => r.json()).then(d => { if (d.success) { evalConfig = config; renderConvGoldens(); showQuickStatus('Cohorts saved!'); } });
+}
 
 function generateConvGoldens() {
   const desc = document.getElementById('convAiDescription').value.trim();
