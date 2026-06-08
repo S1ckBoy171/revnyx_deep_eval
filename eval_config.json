@@ -1,0 +1,10 @@
+{
+  "custom_metrics": [],
+  "cohorts": [],
+  "template_variables": {},
+  "conversation_metrics": [],
+  "builtin_metrics": {
+    "answer_relevancy": {"enabled": true, "threshold": 0.8},
+    "hallucination": {"enabled": true, "threshold": 0.7}
+  }
+}
