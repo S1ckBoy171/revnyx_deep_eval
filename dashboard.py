@@ -289,13 +289,7 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
       <div><div class="golden-label">Iterations</div>
         <input type="number" class="ai-count-input" id="optIter" value="10" min="1" max="30"></div>
       <div><div class="golden-label">Metrics</div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <label style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="optMetricRelevancy" checked> Answer Relevancy</label>
-          <label style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="optMetricLanguage" checked> Language Compliance</label>
-          <label style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="optMetricCorrectness" checked> Correctness</label>
-          <label style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="optMetricHallucination"> Hallucination</label>
-          <label style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="optMetricHelpfulness"> Helpfulness</label>
-        </div></div>
+        <div style="font-size:11px;color:var(--text-muted);max-width:180px;">Metrics are configured in the Evaluation Metrics section above.</div></div>
       <div><div class="golden-label">Threshold</div>
         <input type="number" class="ai-count-input" id="optThreshold" value="0.85" min="0" max="1" step="0.05"></div>
       <button class="btn btn-sm btn-gold" onclick="saveOptConfig()">Save</button>
@@ -304,6 +298,44 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
   <div class="disabled-msg" id="disabledNotice">Add at least one golden to enable evaluation.</div>
   <div class="status" id="statusBar"></div>
   <div class="log-box" id="logOutput"></div>
+</div>
+
+<!-- Evaluation Metrics -->
+<div class="card">
+  <div class="card-title">Evaluation Metrics</div>
+
+  <!-- Builtin Metrics -->
+  <div style="margin-bottom:20px;">
+    <div class="golden-label" style="margin-bottom:10px;">Built-in Metrics</div>
+    <div id="builtinMetrics" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <label style="font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;min-width:180px;">
+          <input type="checkbox" id="builtinAnswerRelevancy" checked> Answer Relevancy
+        </label>
+        <span style="font-size:11px;color:var(--text-muted);">Threshold:</span>
+        <input type="number" class="ai-count-input" id="thresholdAnswerRelevancy" value="0.8" min="0" max="1" step="0.05" style="width:64px;">
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <label style="font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;min-width:180px;">
+          <input type="checkbox" id="builtinHallucination" checked> Hallucination
+        </label>
+        <span style="font-size:11px;color:var(--text-muted);">Threshold:</span>
+        <input type="number" class="ai-count-input" id="thresholdHallucination" value="0.7" min="0" max="1" step="0.05" style="width:64px;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Metrics -->
+  <div style="margin-bottom:16px;">
+    <div class="golden-label" style="margin-bottom:10px;">Custom Metrics</div>
+    <div id="customMetricsContainer"></div>
+    <div class="goldens-empty" id="customMetricsEmpty" style="padding:20px;">No custom metrics defined.</div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-sm" onclick="addCustomMetric()">+ Add Metric</button>
+    <button class="btn btn-sm btn-gold" onclick="saveEvalConfig()">Save Metrics</button>
+  </div>
 </div>
 
 <!-- Goldens -->
@@ -423,7 +455,9 @@ let goldens = [];
 let toolGoldens = [];
 let convGoldens = [];
 let running = false;
+let evalConfig = {};
 
+fetch('/api/eval_config').then(r => r.json()).then(data => { evalConfig = data; renderMetrics(); }).catch(() => renderMetrics());
 fetch('/api/goldens').then(r => r.json()).then(data => { goldens = data; renderGoldens(); }).catch(() => renderGoldens());
 fetch('/api/tool_goldens').then(r => r.json()).then(data => { toolGoldens = data; renderToolGoldens(); }).catch(() => renderToolGoldens());
 fetch('/api/conv_goldens').then(r => r.json()).then(data => { convGoldens = data; renderConvGoldens(); }).catch(() => renderConvGoldens());
@@ -431,12 +465,6 @@ fetch('/api/optimizer_config').then(r => r.json()).then(data => {
   document.getElementById('optAlgo').value = data.algorithm || 'GEPA';
   document.getElementById('optIter').value = data.iterations || 10;
   document.getElementById('optThreshold').value = data.threshold || 0.85;
-  const metrics = data.metrics || [data.metric || 'AnswerRelevancy'];
-  document.getElementById('optMetricRelevancy').checked = metrics.includes('AnswerRelevancy');
-  document.getElementById('optMetricLanguage').checked = metrics.includes('LanguageCompliance');
-  document.getElementById('optMetricCorrectness').checked = metrics.includes('Correctness');
-  document.getElementById('optMetricHallucination').checked = metrics.includes('Hallucination');
-  document.getElementById('optMetricHelpfulness').checked = metrics.includes('Helpfulness');
 }).catch(() => {});
 
 function updateButtonState() {
@@ -499,6 +527,104 @@ function showQuickStatus(msg) {
   s.className = 'status visible status-done';
   s.innerHTML = msg;
   setTimeout(() => { s.className = 'status'; }, 3000);
+}
+
+// Evaluation Metrics
+function renderMetrics() {
+  // Builtin metrics
+  const builtin = evalConfig.builtin_metrics || {};
+  const ar = builtin.answer_relevancy || { enabled: true, threshold: 0.8 };
+  const hal = builtin.hallucination || { enabled: true, threshold: 0.7 };
+  document.getElementById('builtinAnswerRelevancy').checked = ar.enabled !== false;
+  document.getElementById('thresholdAnswerRelevancy').value = ar.threshold != null ? ar.threshold : 0.8;
+  document.getElementById('builtinHallucination').checked = hal.enabled !== false;
+  document.getElementById('thresholdHallucination').value = hal.threshold != null ? hal.threshold : 0.7;
+
+  // Custom metrics
+  const customs = evalConfig.custom_metrics || [];
+  const container = document.getElementById('customMetricsContainer');
+  const empty = document.getElementById('customMetricsEmpty');
+  if (!customs.length) { container.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  container.innerHTML = customs.map((m, i) => {
+    const params = m.eval_params || [];
+    return `<div class="golden-item">
+      <button class="golden-remove" onclick="removeCustomMetric(${i})">&times;</button>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+        <div class="golden-field" style="flex:1;min-width:160px;"><div class="golden-label">Name</div>
+        <input class="golden-input" value="${escAttr(m.name || '')}" onchange="updateCustomMetric(${i},'name',this.value)" placeholder="Metric name"></div>
+        <div class="golden-field" style="width:80px;"><div class="golden-label">Threshold</div>
+        <input type="number" class="golden-input" value="${m.threshold != null ? m.threshold : 0.5}" min="0" max="1" step="0.05" onchange="updateCustomMetric(${i},'threshold',parseFloat(this.value))"></div>
+        <div class="golden-field" style="min-width:120px;"><div class="golden-label">Apply To</div>
+        <select class="golden-input" onchange="updateCustomMetric(${i},'apply_to',this.value)" style="cursor:pointer;">
+          <option value="all" ${m.apply_to==='all'?'selected':''}>all</option>
+          <option value="single_turn" ${m.apply_to==='single_turn'?'selected':''}>single_turn</option>
+          <option value="conversation" ${m.apply_to==='conversation'?'selected':''}>conversation</option>
+          <option value="turn" ${m.apply_to==='turn'?'selected':''}>turn</option>
+        </select></div>
+      </div>
+      <div class="golden-field"><div class="golden-label">Criteria</div>
+      <textarea class="golden-textarea" onchange="updateCustomMetric(${i},'criteria',this.value)" placeholder="Describe what this metric evaluates...">${escHtml(m.criteria || '')}</textarea></div>
+      <div class="golden-field"><div class="golden-label">Eval Params</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" ${params.includes('INPUT')?'checked':''} onchange="toggleEvalParam(${i},'INPUT',this.checked)"> INPUT</label>
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" ${params.includes('ACTUAL_OUTPUT')?'checked':''} onchange="toggleEvalParam(${i},'ACTUAL_OUTPUT',this.checked)"> ACTUAL_OUTPUT</label>
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" ${params.includes('EXPECTED_OUTPUT')?'checked':''} onchange="toggleEvalParam(${i},'EXPECTED_OUTPUT',this.checked)"> EXPECTED_OUTPUT</label>
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" ${params.includes('CONTEXT')?'checked':''} onchange="toggleEvalParam(${i},'CONTEXT',this.checked)"> CONTEXT</label>
+      </div></div>
+    </div>`;
+  }).join('');
+}
+
+function addCustomMetric() {
+  if (!evalConfig.custom_metrics) evalConfig.custom_metrics = [];
+  evalConfig.custom_metrics.push({ name: '', criteria: '', threshold: 0.5, apply_to: 'all', eval_params: ['INPUT', 'ACTUAL_OUTPUT'] });
+  renderMetrics();
+  const items = document.querySelectorAll('#customMetricsContainer .golden-item');
+  const last = items[items.length - 1];
+  if (last) { last.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => { last.querySelector('.golden-input').focus(); }, 300); }
+}
+
+function removeCustomMetric(i) {
+  evalConfig.custom_metrics.splice(i, 1);
+  renderMetrics();
+}
+
+function updateCustomMetric(i, field, value) {
+  if (!evalConfig.custom_metrics) return;
+  evalConfig.custom_metrics[i][field] = value;
+}
+
+function toggleEvalParam(i, param, checked) {
+  if (!evalConfig.custom_metrics || !evalConfig.custom_metrics[i]) return;
+  if (!evalConfig.custom_metrics[i].eval_params) evalConfig.custom_metrics[i].eval_params = [];
+  if (checked && !evalConfig.custom_metrics[i].eval_params.includes(param)) {
+    evalConfig.custom_metrics[i].eval_params.push(param);
+  }
+  if (!checked) {
+    evalConfig.custom_metrics[i].eval_params = evalConfig.custom_metrics[i].eval_params.filter(p => p !== param);
+  }
+}
+
+function saveEvalConfig() {
+  const config = {
+    builtin_metrics: {
+      answer_relevancy: {
+        enabled: document.getElementById('builtinAnswerRelevancy').checked,
+        threshold: parseFloat(document.getElementById('thresholdAnswerRelevancy').value) || 0.8
+      },
+      hallucination: {
+        enabled: document.getElementById('builtinHallucination').checked,
+        threshold: parseFloat(document.getElementById('thresholdHallucination').value) || 0.7
+      }
+    },
+    custom_metrics: (evalConfig.custom_metrics || []).filter(m => m.name && m.name.trim()),
+    cohorts: evalConfig.cohorts || [],
+    template_variables: evalConfig.template_variables || {},
+    conversation_metrics: evalConfig.conversation_metrics || []
+  };
+  fetch('/api/eval_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(config) })
+  .then(r => r.json()).then(d => { if (d.success) { evalConfig = config; showQuickStatus('Evaluation metrics saved!'); } });
 }
 
 // Tool Goldens
@@ -712,16 +838,9 @@ function convertTranscriptAi() {
 
 // Optimizer Config
 function saveOptConfig() {
-  const metrics = [];
-  if (document.getElementById('optMetricRelevancy').checked) metrics.push('AnswerRelevancy');
-  if (document.getElementById('optMetricLanguage').checked) metrics.push('LanguageCompliance');
-  if (document.getElementById('optMetricCorrectness').checked) metrics.push('Correctness');
-  if (document.getElementById('optMetricHallucination').checked) metrics.push('Hallucination');
-  if (document.getElementById('optMetricHelpfulness').checked) metrics.push('Helpfulness');
   const data = {
     algorithm: document.getElementById('optAlgo').value,
     iterations: parseInt(document.getElementById('optIter').value) || 10,
-    metrics: metrics.length ? metrics : ['AnswerRelevancy'],
     threshold: parseFloat(document.getElementById('optThreshold').value) || 0.85
   };
   fetch('/api/optimizer_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) })
@@ -1228,6 +1347,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "success": _run_state.get("success", False),
                 "message": _run_state.get("message", ""),
             }).encode())
+        elif self.path == "/api/eval_config":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            if os.path.exists("eval_config.json"):
+                with open("eval_config.json") as f:
+                    self.wfile.write(f.read().encode())
+            else:
+                self.wfile.write(b'{}')
         elif self.path == "/api/optimizer_config":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -1236,7 +1364,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 with open("optimizer_config.json") as f:
                     self.wfile.write(f.read().encode())
             else:
-                self.wfile.write(b'{"algorithm":"GEPA","iterations":10,"metrics":["AnswerRelevancy","LanguageCompliance","Correctness"],"threshold":0.85}')
+                self.wfile.write(b'{"algorithm":"GEPA","iterations":10,"threshold":0.85}')
         else:
             self.send_response(404)
             self.end_headers()
@@ -1252,6 +1380,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
         elif self.path == "/api/tool_goldens":
             with open(TOOL_GOLDENS_FILE, "w") as f:
+                json.dump(body, f, indent=2)
+            self._json_response({"success": True})
+
+        elif self.path == "/api/eval_config":
+            with open("eval_config.json", "w") as f:
                 json.dump(body, f, indent=2)
             self._json_response({"success": True})
 
