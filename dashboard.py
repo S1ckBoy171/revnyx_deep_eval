@@ -287,15 +287,17 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
           <option value="SIMBA">SIMBA</option>
         </select></div>
       <div><div class="golden-label">Iterations</div>
-        <input type="number" class="ai-count-input" id="optIter" value="5" min="1" max="20"></div>
-      <div><div class="golden-label">Metric</div>
-        <select class="golden-input" id="optMetric" style="width:160px;cursor:pointer;">
-          <option value="AnswerRelevancy">Answer Relevancy</option>
-          <option value="Hallucination">Hallucination</option>
-          <option value="Helpfulness">Helpfulness (GEval)</option>
-        </select></div>
+        <input type="number" class="ai-count-input" id="optIter" value="10" min="1" max="30"></div>
+      <div><div class="golden-label">Metrics</div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="optMetricRelevancy" checked> Answer Relevancy</label>
+          <label style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="optMetricLanguage" checked> Language Compliance</label>
+          <label style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="optMetricCorrectness" checked> Correctness</label>
+          <label style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="optMetricHallucination"> Hallucination</label>
+          <label style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="optMetricHelpfulness"> Helpfulness</label>
+        </div></div>
       <div><div class="golden-label">Threshold</div>
-        <input type="number" class="ai-count-input" id="optThreshold" value="0.7" min="0" max="1" step="0.1"></div>
+        <input type="number" class="ai-count-input" id="optThreshold" value="0.85" min="0" max="1" step="0.05"></div>
       <button class="btn btn-sm btn-gold" onclick="saveOptConfig()">Save</button>
     </div>
   </div>
@@ -427,9 +429,14 @@ fetch('/api/tool_goldens').then(r => r.json()).then(data => { toolGoldens = data
 fetch('/api/conv_goldens').then(r => r.json()).then(data => { convGoldens = data; renderConvGoldens(); }).catch(() => renderConvGoldens());
 fetch('/api/optimizer_config').then(r => r.json()).then(data => {
   document.getElementById('optAlgo').value = data.algorithm || 'GEPA';
-  document.getElementById('optIter').value = data.iterations || 5;
-  document.getElementById('optMetric').value = data.metric || 'AnswerRelevancy';
-  document.getElementById('optThreshold').value = data.threshold || 0.7;
+  document.getElementById('optIter').value = data.iterations || 10;
+  document.getElementById('optThreshold').value = data.threshold || 0.85;
+  const metrics = data.metrics || [data.metric || 'AnswerRelevancy'];
+  document.getElementById('optMetricRelevancy').checked = metrics.includes('AnswerRelevancy');
+  document.getElementById('optMetricLanguage').checked = metrics.includes('LanguageCompliance');
+  document.getElementById('optMetricCorrectness').checked = metrics.includes('Correctness');
+  document.getElementById('optMetricHallucination').checked = metrics.includes('Hallucination');
+  document.getElementById('optMetricHelpfulness').checked = metrics.includes('Helpfulness');
 }).catch(() => {});
 
 function updateButtonState() {
@@ -552,11 +559,26 @@ function renderConvGoldens() {
         <button class="golden-remove" style="position:static;width:20px;height:20px;font-size:11px;" onclick="removeConvTurn(${i},${ti})">&times;</button>
       </div>`;
     }).join('');
-    const criteria = (c.eval_criteria || []).join(', ');
+    const cohort = c.cohort || 'inactive';
+    const templateVars = c.template_vars || {};
+    const tvDisplay = Object.entries(templateVars).map(([k,v]) => k + ': ' + v).join(', ');
     return `<div class="golden-item">
       <button class="golden-remove" onclick="removeConvGolden(${i})">&times;</button>
       <div class="golden-field"><div class="golden-label">Scenario Name</div>
       <input class="golden-input" value="${escAttr(c.scenario || '')}" onchange="convGoldens[${i}].scenario=this.value" placeholder="e.g. User objects mid-pitch"></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <div class="golden-field" style="flex:1;min-width:120px;"><div class="golden-label">Cohort</div>
+        <select class="golden-input" onchange="convGoldens[${i}].cohort=this.value" style="cursor:pointer;">
+          <option value="inactive" ${cohort==='inactive'?'selected':''}>inactive</option>
+          <option value="performance_drop" ${cohort==='performance_drop'?'selected':''}>performance_drop</option>
+          <option value="d1_d2" ${cohort==='d1_d2'?'selected':''}>d1_d2</option>
+          <option value="nudge" ${cohort==='nudge'?'selected':''}>nudge</option>
+          <option value="campaign" ${cohort==='campaign'?'selected':''}>campaign</option>
+          <option value="warning" ${cohort==='warning'?'selected':''}>warning</option>
+        </select></div>
+        <div class="golden-field" style="flex:2;min-width:200px;"><div class="golden-label">Template Variables <span style="font-weight:300;opacity:0.6">(JSON)</span></div>
+        <input class="golden-input" value="${escAttr(JSON.stringify(templateVars))}" onchange="try{convGoldens[${i}].template_vars=JSON.parse(this.value)}catch(e){}" placeholder='{"participantName":"...", "cohort":"..."}'></div>
+      </div>
       <div class="golden-field"><div class="golden-label">Eval Criteria</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" ${c.eval_criteria?.includes('flow_correctness')?'checked':''} onchange="toggleConvCriteria(${i},'flow_correctness',this.checked)"> Flow</label>
@@ -573,7 +595,7 @@ function renderConvGoldens() {
 }
 
 function addConvGolden() {
-  convGoldens.push({ scenario: '', eval_criteria: ['flow_correctness', 'language', 'edge_case'], turns: [{ role: 'user', content: '' }] });
+  convGoldens.push({ scenario: '', cohort: 'inactive', template_vars: {}, eval_criteria: ['flow_correctness', 'language', 'edge_case'], turns: [{ role: 'user', content: '' }] });
   renderConvGoldens();
   const items = document.querySelectorAll('#convGoldensContainer .golden-item');
   const last = items[items.length - 1];
@@ -591,6 +613,8 @@ function toggleConvCriteria(i, criterion, checked) {
 function saveConvGoldens() {
   const clean = convGoldens.filter(c => c.scenario && c.turns.some(t => t.content.trim())).map(c => ({
     scenario: c.scenario,
+    cohort: c.cohort || 'inactive',
+    template_vars: c.template_vars || {},
     eval_criteria: c.eval_criteria || [],
     turns: c.turns.filter(t => t.content.trim()).map(t => ({ role: 'user', content: t.content }))
   }));
@@ -688,11 +712,17 @@ function convertTranscriptAi() {
 
 // Optimizer Config
 function saveOptConfig() {
+  const metrics = [];
+  if (document.getElementById('optMetricRelevancy').checked) metrics.push('AnswerRelevancy');
+  if (document.getElementById('optMetricLanguage').checked) metrics.push('LanguageCompliance');
+  if (document.getElementById('optMetricCorrectness').checked) metrics.push('Correctness');
+  if (document.getElementById('optMetricHallucination').checked) metrics.push('Hallucination');
+  if (document.getElementById('optMetricHelpfulness').checked) metrics.push('Helpfulness');
   const data = {
     algorithm: document.getElementById('optAlgo').value,
-    iterations: parseInt(document.getElementById('optIter').value) || 5,
-    metric: document.getElementById('optMetric').value,
-    threshold: parseFloat(document.getElementById('optThreshold').value) || 0.7
+    iterations: parseInt(document.getElementById('optIter').value) || 10,
+    metrics: metrics.length ? metrics : ['AnswerRelevancy'],
+    threshold: parseFloat(document.getElementById('optThreshold').value) || 0.85
   };
   fetch('/api/optimizer_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) })
   .then(r => r.json()).then(d => { if (d.success) showQuickStatus('Optimizer settings saved!'); });
@@ -1206,7 +1236,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 with open("optimizer_config.json") as f:
                     self.wfile.write(f.read().encode())
             else:
-                self.wfile.write(b'{"algorithm":"GEPA","iterations":5,"metric":"AnswerRelevancy","threshold":0.7}')
+                self.wfile.write(b'{"algorithm":"GEPA","iterations":10,"metrics":["AnswerRelevancy","LanguageCompliance","Correctness"],"threshold":0.85}')
         else:
             self.send_response(404)
             self.end_headers()

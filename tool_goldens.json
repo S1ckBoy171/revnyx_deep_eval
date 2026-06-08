@@ -1,1 +1,133 @@
-[]
+[
+  {
+    "input": "मुझे अपनी language बदलनी है, English में बात करो",
+    "actual_output": "बिल्कुल, मैं अभी English में switch करती हूँ।",
+    "tools_called": [
+      {"name": "switch_language_tool", "input": {"language": "english"}}
+    ],
+    "expected_tools": [
+      {"name": "switch_language_tool", "input": {"language": "english"}}
+    ],
+    "context": "Creator explicitly requests language change to English. Tool MUST be called immediately."
+  },
+  {
+    "input": "Tamil mein baat karo please",
+    "actual_output": "जी, मैं Tamil में switch कर रही हूँ।",
+    "tools_called": [
+      {"name": "switch_language_tool", "input": {"language": "tamil"}}
+    ],
+    "expected_tools": [
+      {"name": "switch_language_tool", "input": {"language": "tamil"}}
+    ],
+    "context": "Creator asks to speak in Tamil. Tool must be called for pipeline switch."
+  },
+  {
+    "input": "I want to speak in both Hindi and English",
+    "actual_output": "जी, दोनों languages available हैं — आप किस language से start करना चाहेंगी?",
+    "tools_called": [],
+    "expected_tools": [],
+    "context": "Creator asks for two languages. Agent should ask which to start with BEFORE calling tool."
+  },
+  {
+    "input": "मुझे अभी time नहीं है, बाद में call करो कल सुबह nine बजे",
+    "actual_output": "बिल्कुल, कोई बात नहीं — मैं कल सुबह nine बजे के लिए callback schedule कर देती हूँ।",
+    "tools_called": [
+      {"name": "schedule_callback_tool", "input": {"time": "tomorrow 9am", "reason": "Creator is busy, requested callback"}}
+    ],
+    "expected_tools": [
+      {"name": "schedule_callback_tool", "input": {"time": "tomorrow 9am", "reason": "Creator is busy, requested callback"}}
+    ],
+    "context": "Creator is busy and gives a specific callback time. schedule_callback_tool should be called."
+  },
+  {
+    "input": "अभी meeting में हूँ, बाद में बात करो",
+    "actual_output": "ओह sorry — आप किस time पर available रहेंगी?",
+    "tools_called": [],
+    "expected_tools": [],
+    "context": "Creator is busy but hasn't given a time. Agent should ask for preferred time before scheduling."
+  },
+  {
+    "input": "हाँ evening six बजे call कर लो",
+    "actual_output": "बिल्कुल, मैं आज evening six बजे के लिए schedule कर देती हूँ।",
+    "tools_called": [
+      {"name": "schedule_callback_tool", "input": {"time": "today 6pm", "reason": "Creator requested callback at this time"}}
+    ],
+    "expected_tools": [
+      {"name": "schedule_callback_tool", "input": {"time": "today 6pm", "reason": "Creator requested callback at this time"}}
+    ],
+    "context": "Creator confirms callback time after being asked. Tool should be called now."
+  },
+  {
+    "input": "मुझे किसी real person से बात करनी है, आप transfer करो",
+    "actual_output": "बिल्कुल — मैं अभी आपको team member से connect करती हूँ।",
+    "tools_called": [
+      {"name": "transfer_call_tool", "input": {"reason": "Creator requested human agent"}}
+    ],
+    "expected_tools": [
+      {"name": "transfer_call_tool", "input": {"reason": "Creator requested human agent"}}
+    ],
+    "context": "Creator explicitly asks to speak with a human. transfer_call_tool should be called."
+  },
+  {
+    "input": "मेरा issue solve नहीं हो रहा, किसी और से बात करवाओ",
+    "actual_output": "बिल्कुल — क्या मैं अभी आपको team member से connect करूँ?",
+    "tools_called": [
+      {"name": "transfer_call_tool", "input": {"reason": "Issue unresolved, creator wants human escalation"}}
+    ],
+    "expected_tools": [
+      {"name": "transfer_call_tool", "input": {"reason": "Issue unresolved, creator wants human escalation"}}
+    ],
+    "context": "Creator's issue is unresolved and they want escalation. Transfer should be offered/executed."
+  },
+  {
+    "input": "मुझे call मत करो, Do Not Call list में डाल दो",
+    "actual_output": "बिल्कुल — मैं आपको Do Not Call list में add कर देती हूँ।",
+    "tools_called": [
+      {"name": "add_to_do_not_call_tool", "input": {"reason": "Creator explicitly requested to not be called again"}}
+    ],
+    "expected_tools": [
+      {"name": "add_to_do_not_call_tool", "input": {"reason": "Creator explicitly requested to not be called again"}}
+    ],
+    "context": "Creator is angry about receiving the call and wants to be added to DNC list."
+  },
+  {
+    "input": "हाँ please, आगे कभी call मत करना",
+    "actual_output": "बिल्कुल — मैं आपको Do Not Call list में add कर देती हूँ। Sorry for the inconvenience।",
+    "tools_called": [
+      {"name": "add_to_do_not_call_tool", "input": {"reason": "Creator confirmed they do not want future calls"}}
+    ],
+    "expected_tools": [
+      {"name": "add_to_do_not_call_tool", "input": {"reason": "Creator confirmed they do not want future calls"}}
+    ],
+    "context": "Creator confirms they don't want future calls after being asked. DNC tool should be called."
+  },
+  {
+    "input": "मुझे disturb मत करो, मेरा payment issue है",
+    "actual_output": "ओह sorry, मैं disturb नहीं करना चाहती थी। आपका payment issue — क्या बता सकती हैं exactly क्या हो रहा है?",
+    "tools_called": [],
+    "expected_tools": [],
+    "context": "Creator is frustrated about app issue, NOT about receiving the call. DNC should NOT be triggered - this is different from 'don't call me'."
+  },
+  {
+    "input": "transfer करो but अभी नहीं, कल morning करो",
+    "actual_output": "ठीक है, कोई बात नहीं — मैं कल morning के लिए हमारी team का call schedule कर देती हूँ।",
+    "tools_called": [
+      {"name": "schedule_callback_tool", "input": {"time": "tomorrow morning", "reason": "Creator wants human callback at different time"}}
+    ],
+    "expected_tools": [
+      {"name": "schedule_callback_tool", "input": {"time": "tomorrow morning", "reason": "Creator wants human callback at different time"}}
+    ],
+    "context": "Creator wants transfer but not now. Should fall back to schedule_callback_tool per HUMAN ESCALATION Step 2."
+  },
+  {
+    "input": "मेरा issue resolve नहीं हुआ और transfer भी नहीं चाहिए, बस एक reminder दे दो three days बाद",
+    "actual_output": "ठीक है — मैं three days बाद के लिए एक reminder schedule कर देती हूँ।",
+    "tools_called": [
+      {"name": "schedule_callback_tool", "input": {"time": "in 3 days", "reason": "Creator wants follow-up reminder after 3 days"}}
+    ],
+    "expected_tools": [
+      {"name": "schedule_callback_tool", "input": {"time": "in 3 days", "reason": "Creator wants follow-up reminder after 3 days"}}
+    ],
+    "context": "Creator declines transfer but accepts a scheduled callback. schedule_callback_tool used."
+  }
+]

@@ -1,68 +1,403 @@
 [
   {
-    "scenario": "test-call",
-    "eval_criteria": [
-      "flow_correctness",
-      "language",
-      "edge_case"
-    ],
+    "scenario": "inactive-payment-issue",
+    "cohort": "inactive",
+    "template_vars": {
+      "participantName": "प्रिया",
+      "cohort": "inactive",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "language", "edge_case"],
     "turns": [
-      {
-        "role": "user",
-        "content": "please"
-      },
-      {
-        "role": "user",
-        "content": "yes how can I change my pan card"
-      },
-      {
-        "role": "user",
-        "content": "ma'am please help martira"
-      },
-      {
-        "role": "user",
-        "content": "okay calls connect"
-      },
-      {
-        "role": "user",
-        "content": "okay try time okay"
-      },
-      {
-        "role": "user",
-        "content": "please answer martin"
-      },
-      {
-        "role": "user",
-        "content": "cannot really replay my data"
-      },
-      {
-        "role": "user",
-        "content": "canada language"
-      },
-      {
-        "role": "user",
-        "content": "okay"
-      },
-      {
-        "role": "user",
-        "content": "callback"
-      },
-      {
-        "role": "user",
-        "content": "tomorrow"
-      },
-      {
-        "role": "user",
-        "content": "9 o'clock"
-      },
-      {
-        "role": "user",
-        "content": "9 am"
-      },
-      {
-        "role": "user",
-        "content": "okay thank you"
-      }
+      {"role": "user", "content": "हाँ जी बोलिए"},
+      {"role": "user", "content": "हाँ actually मेरा payment नहीं आया अभी तक"},
+      {"role": "user", "content": "एक हफ्ते से ज़्यादा हो गया है"},
+      {"role": "user", "content": "हाँ केवाईसी तो किया हुआ है मेरा"},
+      {"role": "user", "content": "ठीक है, चेक करती हूँ app में"},
+      {"role": "user", "content": "हाँ solve हो गई thank you"}
+    ]
+  },
+  {
+    "scenario": "inactive-not-getting-calls",
+    "cohort": "inactive",
+    "template_vars": {
+      "participantName": "अंजलि",
+      "cohort": "inactive",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "language", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "जी हाँ बोल रही हूँ"},
+      {"role": "user", "content": "actually calls ही नहीं आती, इसलिए online नहीं आती"},
+      {"role": "user", "content": "day time में online रहती हूँ mostly"},
+      {"role": "user", "content": "अच्छा night time? okay try करती हूँ"},
+      {"role": "user", "content": "और कुछ नहीं, बस यही issue था"}
+    ]
+  },
+  {
+    "scenario": "performance-drop-app-issue",
+    "cohort": "performance_drop",
+    "template_vars": {
+      "participantName": "अनीता",
+      "cohort": "performance_drop",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "language", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "हाँ जी"},
+      {"role": "user", "content": "app ही open नहीं हो रहा properly, बहुत slow है"},
+      {"role": "user", "content": "हाँ cache clear करके देखती हूँ"},
+      {"role": "user", "content": "okay thank you, try करती हूँ"}
+    ]
+  },
+  {
+    "scenario": "performance-drop-bad-experience",
+    "cohort": "performance_drop",
+    "template_vars": {
+      "participantName": "सविता",
+      "cohort": "performance_drop",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "language", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "हाँ बोलो"},
+      {"role": "user", "content": "एक user ने बहुत गंदी बात की, इसलिए online नहीं आ रही"},
+      {"role": "user", "content": "नहीं report नहीं किया मुझे पता नहीं था कैसे करें"},
+      {"role": "user", "content": "okay करती हूँ report, thank you"},
+      {"role": "user", "content": "नहीं और कुछ नहीं, bye"}
+    ]
+  },
+  {
+    "scenario": "d1-d2-new-creator",
+    "cohort": "d1_d2",
+    "template_vars": {
+      "participantName": "काजल",
+      "cohort": "d1_d2",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "language", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "हाँ जी काजल बोल रही हूँ"},
+      {"role": "user", "content": "अभी तो बस join किया है, समझ नहीं आ रहा कैसे use करें"},
+      {"role": "user", "content": "calls कैसे आती हैं? मुझे online रहना है बस?"},
+      {"role": "user", "content": "अच्छा और earning कैसे होती है?"},
+      {"role": "user", "content": "okay समझ गई, try करती हूँ tonight"}
+    ]
+  },
+  {
+    "scenario": "nudge-goes-online",
+    "cohort": "nudge",
+    "template_vars": {
+      "participantName": "सोनिया",
+      "cohort": "nudge",
+      "gender": "female",
+      "nudgeContext": "आपके area में अभी fifteen creators online हैं और calls waiting में हैं"
+    },
+    "eval_criteria": ["flow_correctness", "language"],
+    "turns": [
+      {"role": "user", "content": "हाँ बोलो"},
+      {"role": "user", "content": "अच्छा? हाँ मैं अभी online आ जाती हूँ"},
+      {"role": "user", "content": "okay thank you"}
+    ]
+  },
+  {
+    "scenario": "nudge-later",
+    "cohort": "nudge",
+    "template_vars": {
+      "participantName": "नेहा",
+      "cohort": "nudge",
+      "gender": "female",
+      "nudgeContext": "evening time earnings double हो रही हैं"
+    },
+    "eval_criteria": ["flow_correctness", "language"],
+    "turns": [
+      {"role": "user", "content": "जी हाँ"},
+      {"role": "user", "content": "अभी तो busy हूँ, थोड़ी देर बाद आऊंगी"},
+      {"role": "user", "content": "हाँ reminder दे दो"},
+      {"role": "user", "content": "okay bye"}
+    ]
+  },
+  {
+    "scenario": "nudge-not-today",
+    "cohort": "nudge",
+    "template_vars": {
+      "participantName": "पूजा",
+      "cohort": "nudge",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "language", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "हाँ बोलिए"},
+      {"role": "user", "content": "आज नहीं आ सकती, बहुत काम है"},
+      {"role": "user", "content": "okay thanks"}
+    ]
+  },
+  {
+    "scenario": "campaign-with-details",
+    "cohort": "campaign",
+    "template_vars": {
+      "participantName": "रेखा",
+      "cohort": "campaign",
+      "gender": "female",
+      "cohortDetail": "इस weekend special campaign है — double earnings on Saturday and Sunday"
+    },
+    "eval_criteria": ["flow_correctness", "language"],
+    "turns": [
+      {"role": "user", "content": "जी हाँ बोलो"},
+      {"role": "user", "content": "अच्छा double earnings? कैसे?"},
+      {"role": "user", "content": "Saturday और Sunday दोनों दिन?"},
+      {"role": "user", "content": "okay मैं try करूँगी, thank you"}
+    ]
+  },
+  {
+    "scenario": "campaign-no-details",
+    "cohort": "campaign",
+    "template_vars": {
+      "participantName": "दीपिका",
+      "cohort": "campaign",
+      "gender": "female",
+      "cohortDetail": ""
+    },
+    "eval_criteria": ["flow_correctness", "language"],
+    "turns": [
+      {"role": "user", "content": "हाँ"},
+      {"role": "user", "content": "क्या opportunity है?"},
+      {"role": "user", "content": "हाँ interested हूँ, details भेज दो"},
+      {"role": "user", "content": "okay thank you"}
+    ]
+  },
+  {
+    "scenario": "warning-acknowledges",
+    "cohort": "warning",
+    "template_vars": {
+      "participantName": "मीरा",
+      "cohort": "warning",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "language", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "हाँ जी बोलिए"},
+      {"role": "user", "content": "हाँ समझ गई, मैं ध्यान रखूंगी"},
+      {"role": "user", "content": "okay thank you"}
+    ]
+  },
+  {
+    "scenario": "warning-denies",
+    "cohort": "warning",
+    "template_vars": {
+      "participantName": "रितु",
+      "cohort": "warning",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "language", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "जी हाँ"},
+      {"role": "user", "content": "मैंने कुछ नहीं किया ऐसा, यह गलत है"},
+      {"role": "user", "content": "ठीक है ठीक है, समझ गई"}
+    ]
+  },
+  {
+    "scenario": "warning-resistant-escalation",
+    "cohort": "warning",
+    "template_vars": {
+      "participantName": "सुनीता",
+      "cohort": "warning",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "language", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "हाँ बोलो"},
+      {"role": "user", "content": "यह बकवास है, मैंने कुछ गलत नहीं किया"},
+      {"role": "user", "content": "नहीं मुझे नहीं सुनना ये सब"},
+      {"role": "user", "content": "फिर भी मैं agree नहीं करती"},
+      {"role": "user", "content": "हाँ ठीक है, किसी और से बात करवाओ"}
+    ]
+  },
+  {
+    "scenario": "gender-gate-male-caller",
+    "cohort": "inactive",
+    "template_vars": {
+      "participantName": "प्रिया",
+      "cohort": "inactive",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "हाँ मैं बोल रहा हूँ, प्रिया की husband हूँ"}
+    ]
+  },
+  {
+    "scenario": "gender-gate-metadata-male",
+    "cohort": "inactive",
+    "template_vars": {
+      "participantName": "रवि",
+      "cohort": "inactive",
+      "gender": "male"
+    },
+    "eval_criteria": ["flow_correctness", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "हाँ बोलो"}
+    ]
+  },
+  {
+    "scenario": "wrong-number",
+    "cohort": "inactive",
+    "template_vars": {
+      "participantName": "प्रिया",
+      "cohort": "inactive",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "कौन प्रिया? यहाँ कोई प्रिया नहीं रहती, wrong number है"}
+    ]
+  },
+  {
+    "scenario": "do-not-call-angry",
+    "cohort": "inactive",
+    "template_vars": {
+      "participantName": "आशा",
+      "cohort": "inactive",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "जी हाँ"},
+      {"role": "user", "content": "मुझे call मत करो बार बार, बहुत irritating है"},
+      {"role": "user", "content": "हाँ please, आगे कभी call मत करना"}
+    ]
+  },
+  {
+    "scenario": "creator-busy-driving",
+    "cohort": "inactive",
+    "template_vars": {
+      "participantName": "दिव्या",
+      "cohort": "inactive",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "हाँ बोलो जल्दी, driving कर रही हूँ"},
+      {"role": "user", "content": "अभी नहीं, शाम को call करो"},
+      {"role": "user", "content": "six बजे"}
+    ]
+  },
+  {
+    "scenario": "human-escalation-transfer",
+    "cohort": "inactive",
+    "template_vars": {
+      "participantName": "ममता",
+      "cohort": "inactive",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "हाँ जी"},
+      {"role": "user", "content": "मेरा withdrawal fail हो रहा है बार बार"},
+      {"role": "user", "content": "सब try कर चुकी हूँ, कुछ नहीं हो रहा"},
+      {"role": "user", "content": "किसी real person से बात करवाओ please"}
+    ]
+  },
+  {
+    "scenario": "language-switch-request",
+    "cohort": "inactive",
+    "template_vars": {
+      "participantName": "लक्ष्मी",
+      "cohort": "inactive",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "language"],
+    "turns": [
+      {"role": "user", "content": "हाँ जी"},
+      {"role": "user", "content": "Can you please speak in English? I'm more comfortable in English"},
+      {"role": "user", "content": "Yes, I haven't been online because I'm not getting calls"},
+      {"role": "user", "content": "Okay I'll try at night, thank you"}
+    ]
+  },
+  {
+    "scenario": "inactive-kyc-issue",
+    "cohort": "inactive",
+    "template_vars": {
+      "participantName": "शालिनी",
+      "cohort": "inactive",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "language"],
+    "turns": [
+      {"role": "user", "content": "जी हाँ"},
+      {"role": "user", "content": "मेरा केवाईसी reject हो गया है, इसलिए "},
+      {"role": "user", "content": "पैन card तो मेरा ही है, पता नहीं क्यों reject हुआ"},
+      {"role": "user", "content": "अच्छा support से contact करूँ? okay"},
+      {"role": "user", "content": "हाँ बस यही issue था, thank you"}
+    ]
+  },
+  {
+    "scenario": "inactive-withdrawal-issue",
+    "cohort": "inactive",
+    "template_vars": {
+      "participantName": "गीता",
+      "cohort": "inactive",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "language"],
+    "turns": [
+      {"role": "user", "content": "हाँ बोलिए"},
+      {"role": "user", "content": "withdrawal किया था लेकिन fail हो गया, पैसे वापस भी नहीं आए"},
+      {"role": "user", "content": "हाँ twenty four hours से ज़्यादा हो गया"},
+      {"role": "user", "content": "okay support से contact करती हूँ transaction ID देकर"},
+      {"role": "user", "content": "thank you"}
+    ]
+  },
+  {
+    "scenario": "inactive-no-time-personal",
+    "cohort": "inactive",
+    "template_vars": {
+      "participantName": "रश्मि",
+      "cohort": "inactive",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "language", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "जी हाँ"},
+      {"role": "user", "content": "actually health issues chal rahe hain, time nahi mil raha"},
+      {"role": "user", "content": "हाँ reminder दे दो एक week बाद का"},
+      {"role": "user", "content": "community? हाँ WhatsApp group add कर दो"},
+      {"role": "user", "content": "thank you, bye"}
+    ]
+  },
+  {
+    "scenario": "ambiguous-response-identity",
+    "cohort": "inactive",
+    "template_vars": {
+      "participantName": "स्वाति",
+      "cohort": "inactive",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "hmm"},
+      {"role": "user", "content": "हाँ हाँ मैं ही हूँ"},
+      {"role": "user", "content": "कोई issue नहीं है बस busy थी"},
+      {"role": "user", "content": "okay try करूँगी online आने का"}
+    ]
+  },
+  {
+    "scenario": "asr-noisy-input",
+    "cohort": "inactive",
+    "template_vars": {
+      "participantName": "प्रिया",
+      "cohort": "inactive",
+      "gender": "female"
+    },
+    "eval_criteria": ["flow_correctness", "edge_case"],
+    "turns": [
+      {"role": "user", "content": "please"},
+      {"role": "user", "content": "yes how can I change my pan card"},
+      {"role": "user", "content": "okay calls connect"},
+      {"role": "user", "content": "callback"},
+      {"role": "user", "content": "tomorrow"},
+      {"role": "user", "content": "9 am"},
+      {"role": "user", "content": "okay thank you"}
     ]
   }
 ]
