@@ -3,11 +3,10 @@ Conversation prompt optimization script.
 Run with: python3 optimize_conversation.py
 
 Uses DeepEval's PromptOptimizer with:
-- Cohort-specific flow metrics
+- Metrics loaded dynamically from eval_config.json (conversation_metrics + custom)
 - Template variable injection for realistic testing
-- Stronger optimizer model (gpt-4o)
-- Multi-metric Pareto optimization (Flow + Language + EdgeCase + ForbiddenPhrases)
-- 10 iterations for deeper exploration
+- Algorithm and iterations from optimizer_config.json
+- Multi-turn conversation playback with tool support
 """
 
 import json
@@ -32,11 +31,18 @@ sys.stdout.reconfigure(line_buffering=True)
 
 CONV_GOLDENS_FILE = "conversation_goldens.json"
 
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
 with open("system_prompt.txt") as f:
     initial_prompt_text = f.read().strip()
 
 with open("optimizer_config.json") as f:
     opt_config = json.load(f)
+
+with open("eval_config.json") as f:
+    eval_config = json.load(f)
 
 config = llm_client.load_config()
 
@@ -56,16 +62,11 @@ for conv in raw_conv:
             Golden(
                 input=json.dumps({
                     "scenario": conv.get("scenario", ""),
-                    "cohort": conv.get("cohort", "inactive"),
+                    "cohort": conv.get("cohort", ""),
                     "template_vars": conv.get("template_vars", {}),
                     "turns": user_turns,
                 }),
-                expected_output=(
-                    f"Agent follows the {conv.get('cohort', 'inactive')} cohort flow correctly. "
-                    "Uses Hinglish with Devanagari for Hindi and female verb forms. "
-                    "Handles edge cases gracefully per protocol. "
-                    "Calls appropriate tools when needed."
-                ),
+                expected_output=conv.get("expected_output", "Agent responds appropriately to the conversation."),
             )
         )
 
@@ -74,59 +75,73 @@ if len(goldens) < 2:
     print("Add more scenarios from the dashboard's Conversation Scenarios section.")
     sys.exit(1)
 
-# Conversation metrics
+# ---------------------------------------------------------------------------
+# Map eval_params strings to LLMTestCaseParams enum values
+# ---------------------------------------------------------------------------
+
+PARAM_MAP = {
+    "INPUT": LLMTestCaseParams.INPUT,
+    "ACTUAL_OUTPUT": LLMTestCaseParams.ACTUAL_OUTPUT,
+    "EXPECTED_OUTPUT": LLMTestCaseParams.EXPECTED_OUTPUT,
+    "CONTEXT": LLMTestCaseParams.CONTEXT,
+    "RETRIEVAL_CONTEXT": LLMTestCaseParams.RETRIEVAL_CONTEXT,
+}
+
+
+def _build_eval_params(param_list):
+    """Convert a list of param name strings to LLMTestCaseParams."""
+    if not param_list:
+        return [LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT]
+    return [PARAM_MAP[p] for p in param_list if p in PARAM_MAP]
+
+
+# ---------------------------------------------------------------------------
+# Build metrics list dynamically from eval_config.json
+# ---------------------------------------------------------------------------
+
 threshold = opt_config.get("conversation_threshold", opt_config.get("threshold", 0.8))
 
-flow_metric = GEval(
-    name="FlowCorrectness",
-    criteria=(
-        "The agent follows the correct cohort-specific call flow. "
-        "After identity confirmation, delivers the right cohort opener (not any other cohort's opener). "
-        "Listens to creator's response, identifies issues conversationally (never a numbered menu), "
-        "provides matching resolution, ends resolution with standard follow-up question, wraps up warmly."
-    ),
-    evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
-    threshold=threshold,
-)
+metrics = []
 
-language_metric = GEval(
-    name="LanguageCompliance",
-    criteria=(
-        "The agent speaks in Hinglish (natural Hindi-English mix). Hindi words are in Devanagari, English in English script. "
-        "Uses female verb forms for self-reference (समझ गई, बोल रही हूँ — never समझ गया, बोल रहा हूँ). "
-        "Acronyms in Devanagari (पैन, ओटीपी, आईएफएससी, केवाईसी). "
-        "Numbers in English words. Never uses 'sir'/'ma'am'/'bhaiya'/'didi'. "
-        "Rotates filler words — never repeats same filler in consecutive turns."
-    ),
-    evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
-    threshold=threshold,
-)
+# 1. Conversation metrics from eval_config
+for m in eval_config.get("conversation_metrics", []):
+    metrics.append(
+        GEval(
+            name=m.get("name", "ConversationMetric"),
+            criteria=m.get("criteria", ""),
+            evaluation_params=_build_eval_params(m.get("eval_params")),
+            threshold=m.get("threshold", threshold),
+        )
+    )
 
-edge_case_metric = GEval(
-    name="EdgeCaseHandling",
-    criteria=(
-        "When user objects, interrupts, goes off-topic, identifies as male, says wrong number, or says don't call: "
-        "the agent follows the correct protocol without continuing the main flow inappropriately. "
-        "Never gets pushy, never ignores, handles gracefully."
-    ),
-    evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
-    threshold=threshold,
-)
+# 2. Custom metrics where apply_to is "all" or "conversation"
+for cm in eval_config.get("custom_metrics", []):
+    apply_to = cm.get("apply_to", "all").lower()
+    if apply_to in ("all", "conversation"):
+        metrics.append(
+            GEval(
+                name=cm["name"],
+                criteria=cm["criteria"],
+                evaluation_params=_build_eval_params(cm.get("eval_params")),
+                threshold=cm.get("threshold", threshold),
+            )
+        )
 
-forbidden_metric = GEval(
-    name="ForbiddenPhraseAbsence",
-    criteria=(
-        "The response never contains: 'I can't continue this call' or variants, "
-        "threatening language, numbered menus of issue categories, "
-        "masculine self-referential verb forms, or the creator's name after the opener."
-    ),
-    evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT],
-    threshold=0.9,
-)
+# Fallback: if no conversation metrics configured, use a generic flow metric
+if not metrics:
+    metrics = [
+        GEval(
+            name="FlowCorrectness",
+            criteria="Agent follows a logical conversation flow, responds appropriately to user messages, and handles the conversation professionally.",
+            evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
+            threshold=0.75,
+        )
+    ]
 
-metrics = [flow_metric, language_metric, edge_case_metric, forbidden_metric]
+# ---------------------------------------------------------------------------
+# Algorithm selection from optimizer_config.json
+# ---------------------------------------------------------------------------
 
-# Select algorithm
 algo_name = opt_config.get("algorithm", "GEPA")
 iterations = opt_config.get("iterations", 10)
 
@@ -154,13 +169,14 @@ def model_callback(prompt: Prompt, golden: Golden) -> str:
     system_text = prompt.text_template or ""
     conv_data = json.loads(golden.input)
     scenario = conv_data.get("scenario", "")
-    cohort = conv_data.get("cohort", "inactive")
+    cohort = conv_data.get("cohort", "")
     template_vars = conv_data.get("template_vars", {})
     user_turns = conv_data["turns"]
 
     print(f"[Call {_call_count}] Scenario: {scenario[:30]} (cohort: {cohort}, {len(user_turns)} turns)")
     sys.stdout.flush()
 
+    # Inject template variables from the golden into the system prompt
     injected_prompt = llm_client.inject_template_vars(system_text, template_vars)
 
     messages = []

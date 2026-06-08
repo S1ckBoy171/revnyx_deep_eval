@@ -3,10 +3,10 @@ Prompt optimization script (single-turn).
 Run with: python3 optimize_prompt.py
 
 Uses DeepEval's PromptOptimizer with:
-- Multi-metric optimization (AnswerRelevancy + LanguageCompliance + Correctness)
-- Stronger optimizer model (gpt-4o) for better prompt mutations
+- Metrics loaded dynamically from eval_config.json (builtin + custom)
+- Algorithm and iterations from optimizer_config.json
 - Baseline measurement before optimization
-- 10 iterations for deeper search
+- Results persistence
 """
 
 import json
@@ -29,6 +29,10 @@ import llm_client
 
 sys.stdout.reconfigure(line_buffering=True)
 
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
 with open("goldens.json") as f:
     raw_goldens = json.load(f)
 
@@ -37,6 +41,9 @@ with open("system_prompt.txt") as f:
 
 with open("optimizer_config.json") as f:
     opt_config = json.load(f)
+
+with open("eval_config.json") as f:
+    eval_config = json.load(f)
 
 config = llm_client.load_config()
 
@@ -54,51 +61,58 @@ if len(goldens) < 2:
     print("Add more goldens from the dashboard.")
     sys.exit(1)
 
-# Multi-metric setup
-threshold = opt_config.get("threshold", 0.85)
+# ---------------------------------------------------------------------------
+# Map eval_params strings to LLMTestCaseParams enum values
+# ---------------------------------------------------------------------------
+
+PARAM_MAP = {
+    "INPUT": LLMTestCaseParams.INPUT,
+    "ACTUAL_OUTPUT": LLMTestCaseParams.ACTUAL_OUTPUT,
+    "EXPECTED_OUTPUT": LLMTestCaseParams.EXPECTED_OUTPUT,
+    "CONTEXT": LLMTestCaseParams.CONTEXT,
+    "RETRIEVAL_CONTEXT": LLMTestCaseParams.RETRIEVAL_CONTEXT,
+}
+
+# ---------------------------------------------------------------------------
+# Build metrics list dynamically from eval_config.json
+# ---------------------------------------------------------------------------
+
+BUILTIN_REGISTRY = {
+    "answer_relevancy": lambda cfg: AnswerRelevancyMetric(threshold=cfg.get("threshold", 0.7)),
+    "hallucination": lambda cfg: HallucinationMetric(threshold=cfg.get("threshold", 0.7)),
+}
 
 metrics = []
-metric_names_config = opt_config.get("metrics", ["AnswerRelevancy"])
 
-for metric_name in metric_names_config:
-    if metric_name == "AnswerRelevancy":
-        metrics.append(AnswerRelevancyMetric(threshold=threshold))
-    elif metric_name == "Hallucination":
-        metrics.append(HallucinationMetric(threshold=0.7))
-    elif metric_name == "LanguageCompliance":
-        metrics.append(GEval(
-            name="LanguageCompliance",
-            criteria=(
-                "The response uses proper Hinglish: Hindi words in Devanagari script, English words in English script. "
-                "Never romanized Hindi. Uses female verb forms for self-reference. "
-                "Acronyms in Devanagari (पैन, ओटीपी, आईएफएससी, केवाईसी). Warm professional tone."
-            ),
-            evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
-            threshold=threshold,
-        ))
-    elif metric_name == "Correctness":
-        metrics.append(GEval(
-            name="Correctness",
-            criteria=(
-                "The response accurately addresses the user's issue with correct information. "
-                "Provides the right resolution steps and ends with the standard follow-up question. "
-                "Information is factually consistent with expected output."
-            ),
-            evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
-            threshold=threshold,
-        ))
-    elif metric_name == "Helpfulness":
-        metrics.append(GEval(
-            name="Helpfulness",
-            criteria="The response is helpful, accurate, and directly addresses the user's question.",
-            evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
-            threshold=threshold,
-        ))
+# 1. Builtin metrics
+builtin_metrics_cfg = eval_config.get("builtin_metrics", {})
+for key, cfg in builtin_metrics_cfg.items():
+    if cfg.get("enabled", False) and key in BUILTIN_REGISTRY:
+        metrics.append(BUILTIN_REGISTRY[key](cfg))
 
+# 2. Custom GEval metrics (apply_to "all" or "single_turn")
+custom_metrics_cfg = eval_config.get("custom_metrics", [])
+for cm in custom_metrics_cfg:
+    apply_to = cm.get("apply_to", "all")
+    if apply_to in ("all", "single_turn"):
+        eval_params = [PARAM_MAP[p] for p in cm.get("eval_params", ["INPUT", "ACTUAL_OUTPUT"]) if p in PARAM_MAP]
+        metrics.append(
+            GEval(
+                name=cm["name"],
+                criteria=cm["criteria"],
+                evaluation_params=eval_params,
+                threshold=cm.get("threshold", 0.7),
+            )
+        )
+
+# Fallback: if no metrics configured, use AnswerRelevancyMetric so optimization can still run
 if not metrics:
-    metrics = [AnswerRelevancyMetric(threshold=threshold)]
+    metrics = [AnswerRelevancyMetric(threshold=0.8)]
 
-# Select algorithm
+# ---------------------------------------------------------------------------
+# Algorithm selection from optimizer_config.json
+# ---------------------------------------------------------------------------
+
 algo_name = opt_config.get("algorithm", "GEPA")
 iterations = opt_config.get("iterations", 10)
 
@@ -113,7 +127,7 @@ elif algo_name == "SIMBA":
 else:
     algorithm = GEPA(iterations=iterations)
 
-# Use stronger model for optimization judgments
+# Use optimizer model from config
 optimizer_model = config.get("optimizer_model", "gpt-4o")
 
 _call_count = 0
@@ -134,7 +148,7 @@ def model_callback(prompt: Prompt, golden: Golden) -> str:
 def measure_baseline():
     """Measure current prompt performance before optimization."""
     print("\n--- Baseline Measurement ---")
-    scores = {m.name: [] for m in metrics}
+    scores = {m.name if hasattr(m, 'name') else m.__class__.__name__: [] for m in metrics}
     sample = goldens[:min(5, len(goldens))]
 
     for i, golden in enumerate(sample):
@@ -147,7 +161,8 @@ def measure_baseline():
         )
         for metric in metrics:
             metric.measure(test_case)
-            scores[metric.name].append(metric.score)
+            metric_name = metric.name if hasattr(metric, 'name') else metric.__class__.__name__
+            scores[metric_name].append(metric.score)
         print(f"  [{i+1}/{len(sample)}] {golden.input[:40]}...")
 
     print("\nBaseline scores:")
@@ -163,13 +178,13 @@ def measure_baseline():
 if __name__ == "__main__":
     start_time = time.time()
 
-    metric_names_str = ", ".join(m.name for m in metrics)
+    metric_names_str = ", ".join(m.name if hasattr(m, 'name') else m.__class__.__name__ for m in metrics)
     print(f"=== Prompt Optimization (Single-Turn) ===")
     print(f"Target Model: {config['model']}")
     print(f"Optimizer Model: {optimizer_model}")
     print(f"Algorithm: {algo_name}")
     print(f"Iterations: {iterations}")
-    print(f"Metrics: {metric_names_str} (threshold: {threshold})")
+    print(f"Metrics: {metric_names_str}")
     print(f"Goldens: {len(goldens)}")
     print(f"Prompt: {initial_prompt_text[:60]}...")
     print(f"-" * 40)
