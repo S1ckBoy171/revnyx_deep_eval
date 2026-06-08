@@ -1760,7 +1760,7 @@ Return ONLY the JSON object, no other text."""
                 results = []
                 try:
                     from deepeval.metrics import AnswerRelevancyMetric, GEval, HallucinationMetric
-                    from deepeval.test_case import LLMTestCase, LLMTestCaseParams
+                    from deepeval.test_case import LLMTestCase, SingleTurnParams
 
                     test_case = LLMTestCase(
                         input=test_input,
@@ -1788,10 +1788,10 @@ Return ONLY the JSON object, no other text."""
                             eval_params = []
                             for p in cm.get("eval_params", []):
                                 param_map = {
-                                    "INPUT": LLMTestCaseParams.INPUT,
-                                    "ACTUAL_OUTPUT": LLMTestCaseParams.ACTUAL_OUTPUT,
-                                    "EXPECTED_OUTPUT": LLMTestCaseParams.EXPECTED_OUTPUT,
-                                    "CONTEXT": LLMTestCaseParams.CONTEXT,
+                                    "INPUT": SingleTurnParams.INPUT,
+                                    "ACTUAL_OUTPUT": SingleTurnParams.ACTUAL_OUTPUT,
+                                    "EXPECTED_OUTPUT": SingleTurnParams.EXPECTED_OUTPUT,
+                                    "CONTEXT": SingleTurnParams.CONTEXT,
                                 }
                                 if p in param_map:
                                     eval_params.append(param_map[p])

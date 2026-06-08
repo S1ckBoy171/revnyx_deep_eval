@@ -23,7 +23,7 @@ from deepeval.optimizer.algorithms.simba.simba import SIMBA
 from deepeval.prompt import Prompt
 from deepeval.dataset import Golden
 from deepeval.metrics import AnswerRelevancyMetric, GEval, HallucinationMetric
-from deepeval.test_case import LLMTestCase, LLMTestCaseParams
+from deepeval.test_case import LLMTestCase, SingleTurnParams
 
 import llm_client
 
@@ -62,15 +62,15 @@ if len(goldens) < 2:
     sys.exit(1)
 
 # ---------------------------------------------------------------------------
-# Map eval_params strings to LLMTestCaseParams enum values
+# Map eval_params strings to SingleTurnParams enum values
 # ---------------------------------------------------------------------------
 
 PARAM_MAP = {
-    "INPUT": LLMTestCaseParams.INPUT,
-    "ACTUAL_OUTPUT": LLMTestCaseParams.ACTUAL_OUTPUT,
-    "EXPECTED_OUTPUT": LLMTestCaseParams.EXPECTED_OUTPUT,
-    "CONTEXT": LLMTestCaseParams.CONTEXT,
-    "RETRIEVAL_CONTEXT": LLMTestCaseParams.RETRIEVAL_CONTEXT,
+    "INPUT": SingleTurnParams.INPUT,
+    "ACTUAL_OUTPUT": SingleTurnParams.ACTUAL_OUTPUT,
+    "EXPECTED_OUTPUT": SingleTurnParams.EXPECTED_OUTPUT,
+    "CONTEXT": SingleTurnParams.CONTEXT,
+    "RETRIEVAL_CONTEXT": SingleTurnParams.RETRIEVAL_CONTEXT,
 }
 
 # ---------------------------------------------------------------------------
