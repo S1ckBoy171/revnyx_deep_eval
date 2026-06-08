@@ -1446,9 +1446,15 @@ Return ONLY the JSON object, no other text."""
         pass
 
 
+class QuietHTTPServer(HTTPServer):
+    def handle_error(self, request, client_address):
+        pass
+
+
 if __name__ == "__main__":
-    server = HTTPServer(("localhost", PORT), DashboardHandler)
-    print(f"Dashboard running at http://localhost:{PORT}")
+    server = QuietHTTPServer(("0.0.0.0", PORT), DashboardHandler)
+    print(f"Dashboard running at http://0.0.0.0:{PORT}")
+    print(f"Accessible on your network at http://192.168.68.57:{PORT}")
     print("Press Ctrl+C to stop.")
     try:
         server.serve_forever()
