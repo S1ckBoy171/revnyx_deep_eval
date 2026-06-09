@@ -2,11 +2,11 @@
 Conversation prompt optimization script.
 Run with: python3 optimize_conversation.py
 
-Uses DeepEval's PromptOptimizer to improve your system prompt
-based on conversation scenarios (conversation_goldens.json) and all 3 metrics:
-FlowCorrectness, LanguageCompliance, EdgeCaseHandling.
-
-GEPA maintains a Pareto frontier across all metrics simultaneously.
+Uses DeepEval's PromptOptimizer with:
+- Metrics loaded dynamically from eval_config.json (conversation_metrics + custom)
+- Template variable injection for realistic testing
+- Algorithm and iterations from optimizer_config.json
+- Multi-turn conversation playback with tool support
 """
 
 import json
@@ -23,7 +23,7 @@ from deepeval.optimizer.algorithms.simba.simba import SIMBA
 from deepeval.prompt import Prompt
 from deepeval.dataset import Golden
 from deepeval.metrics import GEval
-from deepeval.test_case import LLMTestCaseParams
+from deepeval.test_case import LLMTestCase, SingleTurnParams
 
 import llm_client
 
@@ -31,17 +31,21 @@ sys.stdout.reconfigure(line_buffering=True)
 
 CONV_GOLDENS_FILE = "conversation_goldens.json"
 
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
 with open("system_prompt.txt") as f:
     initial_prompt_text = f.read().strip()
 
 with open("optimizer_config.json") as f:
     opt_config = json.load(f)
 
+with open("eval_config.json") as f:
+    eval_config = json.load(f)
+
 config = llm_client.load_config()
 
-# Load conversation goldens and flatten into Goldens for the optimizer.
-# Each conversation becomes one Golden where input = JSON-encoded turns.
-# The model_callback plays out the full multi-turn conversation.
 if not os.path.exists(CONV_GOLDENS_FILE):
     print("ERROR: No conversation_goldens.json found.")
     print("Add scenarios from the dashboard (Generate or From Transcript) and try again.")
@@ -56,8 +60,13 @@ for conv in raw_conv:
     if user_turns:
         goldens.append(
             Golden(
-                input=json.dumps({"scenario": conv.get("scenario", ""), "turns": user_turns}),
-                expected_output="Agent follows greeting->qualify->pitch->CTA flow in Hinglish with female verb forms, handles objections gracefully.",
+                input=json.dumps({
+                    "scenario": conv.get("scenario", ""),
+                    "cohort": conv.get("cohort", ""),
+                    "template_vars": conv.get("template_vars", {}),
+                    "turns": user_turns,
+                }),
+                expected_output=conv.get("expected_output", "Agent responds appropriately to the conversation."),
             )
         )
 
@@ -66,35 +75,75 @@ if len(goldens) < 2:
     print("Add more scenarios from the dashboard's Conversation Scenarios section.")
     sys.exit(1)
 
-# All 3 conversation metrics (same as test_conversation.py)
-threshold = opt_config.get("threshold", 0.7)
+# ---------------------------------------------------------------------------
+# Map eval_params strings to SingleTurnParams enum values
+# ---------------------------------------------------------------------------
 
-flow_metric = GEval(
-    name="FlowCorrectness",
-    criteria="The agent follows a logical call flow: greeting/intro, then qualifying the user (income, needs), then pitching the right plan, then driving a CTA. It does not skip steps, repeat itself unnecessarily, or lose track of where in the conversation it is.",
-    evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
-    threshold=threshold,
-)
+PARAM_MAP = {
+    "INPUT": SingleTurnParams.INPUT,
+    "ACTUAL_OUTPUT": SingleTurnParams.ACTUAL_OUTPUT,
+    "EXPECTED_OUTPUT": SingleTurnParams.EXPECTED_OUTPUT,
+    "CONTEXT": SingleTurnParams.CONTEXT,
+    "RETRIEVAL_CONTEXT": SingleTurnParams.RETRIEVAL_CONTEXT,
+}
 
-language_metric = GEval(
-    name="LanguageCompliance",
-    criteria="The agent speaks in Hinglish (natural Hindi-English mix). Hindi words are in Devanagari, English in English script. The agent uses female verb forms (e.g. 'मैं बता रही हूँ', 'समझ गई') and never masculine forms (e.g. 'समझ गया', 'बोल दिया'). Tone is warm and professional.",
-    evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
-    threshold=threshold,
-)
 
-edge_case_metric = GEval(
-    name="EdgeCaseHandling",
-    criteria="When the user objects, interrupts, goes off-topic, or expresses disinterest, the agent handles it gracefully — acknowledges the concern, doesn't get pushy or robotic, and either redirects naturally or closes politely. The agent never ignores what the user said.",
-    evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
-    threshold=threshold,
-)
+def _build_eval_params(param_list):
+    """Convert a list of param name strings to SingleTurnParams."""
+    if not param_list:
+        return [SingleTurnParams.INPUT, SingleTurnParams.ACTUAL_OUTPUT]
+    return [PARAM_MAP[p] for p in param_list if p in PARAM_MAP]
 
-metrics = [flow_metric, language_metric, edge_case_metric]
 
-# Select algorithm based on config
+# ---------------------------------------------------------------------------
+# Build metrics list dynamically from eval_config.json
+# ---------------------------------------------------------------------------
+
+threshold = opt_config.get("conversation_threshold", opt_config.get("threshold", 0.8))
+
+metrics = []
+
+# 1. Conversation metrics from eval_config
+for m in eval_config.get("conversation_metrics", []):
+    metrics.append(
+        GEval(
+            name=m.get("name", "ConversationMetric"),
+            criteria=m.get("criteria", ""),
+            evaluation_params=_build_eval_params(m.get("eval_params")),
+            threshold=m.get("threshold", threshold),
+        )
+    )
+
+# 2. Custom metrics where apply_to is "all" or "conversation"
+for cm in eval_config.get("custom_metrics", []):
+    apply_to = cm.get("apply_to", "all").lower()
+    if apply_to in ("all", "conversation"):
+        metrics.append(
+            GEval(
+                name=cm["name"],
+                criteria=cm["criteria"],
+                evaluation_params=_build_eval_params(cm.get("eval_params")),
+                threshold=cm.get("threshold", threshold),
+            )
+        )
+
+# Fallback: if no conversation metrics configured, use a generic flow metric
+if not metrics:
+    metrics = [
+        GEval(
+            name="FlowCorrectness",
+            criteria="Agent follows a logical conversation flow, responds appropriately to user messages, and handles the conversation professionally.",
+            evaluation_params=[SingleTurnParams.INPUT, SingleTurnParams.ACTUAL_OUTPUT],
+            threshold=0.75,
+        )
+    ]
+
+# ---------------------------------------------------------------------------
+# Algorithm selection from optimizer_config.json
+# ---------------------------------------------------------------------------
+
 algo_name = opt_config.get("algorithm", "GEPA")
-iterations = opt_config.get("iterations", 5)
+iterations = opt_config.get("iterations", 10)
 
 if algo_name == "GEPA":
     algorithm = GEPA(iterations=iterations)
@@ -107,39 +156,61 @@ elif algo_name == "SIMBA":
 else:
     algorithm = GEPA(iterations=iterations)
 
+optimizer_model = config.get("optimizer_model", "gpt-4o")
+
 _call_count = 0
 
 
 def model_callback(prompt: Prompt, golden: Golden) -> str:
-    """Play out a full multi-turn conversation and return the complete agent transcript."""
+    """Play out a full multi-turn conversation with template vars and return the agent transcript."""
     global _call_count
     _call_count += 1
 
     system_text = prompt.text_template or ""
     conv_data = json.loads(golden.input)
     scenario = conv_data.get("scenario", "")
+    cohort = conv_data.get("cohort", "")
+    template_vars = conv_data.get("template_vars", {})
     user_turns = conv_data["turns"]
 
-    print(f"[Call {_call_count}] Scenario: {scenario[:40]}... ({len(user_turns)} turns)")
+    print(f"[Call {_call_count}] Scenario: {scenario[:30]} (cohort: {cohort}, {len(user_turns)} turns)")
     sys.stdout.flush()
 
+    # Inject template variables from the golden into the system prompt
+    injected_prompt = llm_client.inject_template_vars(system_text, template_vars)
+
     messages = []
-    if system_text:
-        messages.append({"role": "system", "content": system_text})
+    if injected_prompt:
+        messages.append({"role": "system", "content": injected_prompt})
 
     agent_responses = []
     client = llm_client.get_client()
+    tools = llm_client.get_tools()
+
     for turn in user_turns:
         messages.append({"role": "user", "content": turn})
-        response = client.chat.completions.create(
-            model=config["model"],
-            messages=messages,
-            temperature=config["temperature"],
-            max_tokens=config.get("max_tokens", 1024),
-        )
-        agent_reply = response.choices[0].message.content
+
+        kwargs = {
+            "model": config["model"],
+            "messages": messages,
+            "temperature": config["temperature"],
+            "max_tokens": config.get("max_tokens", 2048),
+        }
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = "auto"
+
+        response = client.chat.completions.create(**kwargs)
+        message = response.choices[0].message
+        agent_reply = message.content or ""
+
+        tool_info = ""
+        if message.tool_calls:
+            tool_names = [tc.function.name for tc in message.tool_calls]
+            tool_info = f" [Tools: {', '.join(tool_names)}]"
+
         messages.append({"role": "assistant", "content": agent_reply})
-        agent_responses.append(agent_reply)
+        agent_responses.append(agent_reply + tool_info)
 
     result = "\n".join([f"Agent: {r}" for r in agent_responses])
     print(f"  -> {len(agent_responses)} turns, {len(result)} chars")
@@ -152,7 +223,8 @@ if __name__ == "__main__":
 
     metric_names = ", ".join(m.name for m in metrics)
     print(f"=== Conversation Prompt Optimization ===")
-    print(f"Model: {config['model']}")
+    print(f"Target Model: {config['model']}")
+    print(f"Optimizer Model: {optimizer_model}")
     print(f"Algorithm: {algo_name}")
     print(f"Iterations: {iterations}")
     print(f"Metrics: {metric_names} (threshold: {threshold})")
@@ -169,7 +241,7 @@ if __name__ == "__main__":
     optimizer = PromptOptimizer(
         model_callback=model_callback,
         metrics=metrics,
-        optimizer_model=config["model"],
+        optimizer_model=optimizer_model,
         algorithm=algorithm,
     )
 
@@ -184,7 +256,9 @@ if __name__ == "__main__":
         f.write(f"Type: Conversation Optimization\n")
         f.write(f"Algorithm: {algo_name}\n")
         f.write(f"Metrics: {metric_names}\n")
-        f.write(f"Model: {config['model']}\n")
+        f.write(f"Optimizer Model: {optimizer_model}\n")
+        f.write(f"Target Model: {config['model']}\n")
+        f.write(f"Iterations: {iterations}\n")
         f.write(f"Duration: {duration}s\n")
         f.write(f"Prompt:\n{best_prompt_text}\n")
         f.write(f"{'=' * 60}\n\n")
@@ -196,13 +270,15 @@ if __name__ == "__main__":
     else:
         data = []
     data.append({
-        "type": "optimization",
+        "type": "conversation_optimization",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "system_prompt": initial_prompt_text,
         "optimized_prompt": best_prompt_text,
         "model": config["model"],
+        "optimizer_model": optimizer_model,
         "algorithm": algo_name,
         "metrics": metric_names,
+        "iterations": iterations,
         "duration_seconds": duration,
         "tests": [],
     })

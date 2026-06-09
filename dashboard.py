@@ -287,21 +287,58 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
           <option value="SIMBA">SIMBA</option>
         </select></div>
       <div><div class="golden-label">Iterations</div>
-        <input type="number" class="ai-count-input" id="optIter" value="5" min="1" max="20"></div>
-      <div><div class="golden-label">Metric</div>
-        <select class="golden-input" id="optMetric" style="width:160px;cursor:pointer;">
-          <option value="AnswerRelevancy">Answer Relevancy</option>
-          <option value="Hallucination">Hallucination</option>
-          <option value="Helpfulness">Helpfulness (GEval)</option>
-        </select></div>
+        <input type="number" class="ai-count-input" id="optIter" value="10" min="1" max="30"></div>
+      <div><div class="golden-label">Metrics</div>
+        <div style="font-size:11px;color:var(--text-muted);max-width:180px;">Metrics are configured in the Evaluation Metrics section above.</div></div>
       <div><div class="golden-label">Threshold</div>
-        <input type="number" class="ai-count-input" id="optThreshold" value="0.7" min="0" max="1" step="0.1"></div>
+        <input type="number" class="ai-count-input" id="optThreshold" value="0.85" min="0" max="1" step="0.05"></div>
       <button class="btn btn-sm btn-gold" onclick="saveOptConfig()">Save</button>
     </div>
   </div>
   <div class="disabled-msg" id="disabledNotice">Add at least one golden to enable evaluation.</div>
   <div class="status" id="statusBar"></div>
   <div class="log-box" id="logOutput"></div>
+</div>
+
+<!-- Evaluation Metrics -->
+<div class="card">
+  <div class="card-title">Evaluation Metrics</div>
+
+  <!-- Builtin Metrics -->
+  <div style="margin-bottom:20px;">
+    <div class="golden-label" style="margin-bottom:10px;">Built-in Metrics</div>
+    <div id="builtinMetrics" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <label style="font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;min-width:180px;">
+          <input type="checkbox" id="builtinAnswerRelevancy" checked> Answer Relevancy
+        </label>
+        <span style="font-size:11px;color:var(--text-muted);">Threshold:</span>
+        <input type="number" class="ai-count-input" id="thresholdAnswerRelevancy" value="0.8" min="0" max="1" step="0.05" style="width:64px;">
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <label style="font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;min-width:180px;">
+          <input type="checkbox" id="builtinHallucination" checked> Hallucination
+        </label>
+        <span style="font-size:11px;color:var(--text-muted);">Threshold:</span>
+        <input type="number" class="ai-count-input" id="thresholdHallucination" value="0.7" min="0" max="1" step="0.05" style="width:64px;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Metrics -->
+  <div style="margin-bottom:16px;">
+    <div class="golden-label" style="margin-bottom:10px;">Custom Metrics</div>
+    <div id="customMetricsContainer"></div>
+    <div class="goldens-empty" id="customMetricsEmpty" style="padding:20px;">No custom metrics defined.</div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-sm" onclick="addCustomMetric()">+ Add Metric</button>
+    <button class="btn btn-sm btn-gold" onclick="saveEvalConfig()">Save Metrics</button>
+    <button class="btn btn-sm btn-success" id="btnTestConfig" onclick="testConfig()">Test Config</button>
+  </div>
+  <div class="status" id="testConfigStatus"></div>
+  <div class="log-box" id="testConfigResults"></div>
 </div>
 
 <!-- Goldens -->
@@ -341,8 +378,21 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
       <div class="card-title" style="margin:0;">Tool Test Cases</div>
       <span class="goldens-count" id="toolGoldensCount">(0)</span>
     </div>
-    <div><button class="btn btn-sm" onclick="addToolGolden()">+ Add</button></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-sm" onclick="toggleToolDefSection()">Manage Tools</button>
+      <button class="btn btn-sm" onclick="addToolGolden()">+ Add</button>
+    </div>
   </div>
+
+  <div class="ai-section" id="toolDefSection">
+    <div class="ai-label">Tool Definitions (from config.json)</div>
+    <div id="toolDefsContainer"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-sm" onclick="addToolDef()">+ Add Tool</button>
+      <button class="btn btn-sm btn-gold" onclick="saveToolDefs()">Save Tools</button>
+    </div>
+  </div>
+
   <div id="toolGoldensContainer"></div>
   <div class="goldens-empty" id="toolGoldensEmpty">No tool test cases yet.</div>
   <button class="btn btn-sm btn-gold" id="btnSaveToolGoldens" onclick="saveToolGoldens()" style="display:none;margin-top:12px;">Save Tool Tests</button>
@@ -358,6 +408,7 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
     <div style="display:flex;gap:8px;">
       <button class="btn btn-sm btn-accent" onclick="toggleConvAiSection()"><img src="https://img.icons8.com/?size=100&id=rYb1JFR9WLSh&format=png&color=000000" style="width:14px;height:14px;filter:invert(1);vertical-align:middle;margin-right:4px;">Generate</button>
       <button class="btn btn-sm btn-purple" onclick="toggleTranscriptSection()">From Transcript</button>
+      <button class="btn btn-sm" onclick="toggleCohortSection()">Manage Cohorts</button>
       <button class="btn btn-sm" onclick="addConvGolden()">+ Add Scenario</button>
     </div>
   </div>
@@ -405,6 +456,15 @@ Agent: Perfect, toh aapke liye humara premium plan best rahega..."></textarea>
     <div class="ai-status" id="transcriptAiStatus"><span class="spinner"></span>Processing transcript...</div>
   </div>
 
+  <div class="ai-section" id="cohortSection">
+    <div class="ai-label">Manage Cohorts &amp; Template Variables</div>
+    <div id="cohortList"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-sm" onclick="addCohort()">+ Add Cohort</button>
+      <button class="btn btn-sm btn-gold" onclick="saveCohorts()">Save Cohorts</button>
+    </div>
+  </div>
+
   <div id="convGoldensContainer"></div>
   <div class="goldens-empty" id="convGoldensEmpty">No conversation scenarios yet. Add a scenario to test multi-turn flows.</div>
   <button class="btn btn-sm btn-gold" id="btnSaveConvGoldens" onclick="saveConvGoldens()" style="display:none;margin-top:12px;">Save Scenarios</button>
@@ -421,15 +481,18 @@ let goldens = [];
 let toolGoldens = [];
 let convGoldens = [];
 let running = false;
+let evalConfig = {};
+let toolDefs = [];
 
+fetch('/api/eval_config').then(r => r.json()).then(data => { evalConfig = data; renderMetrics(); }).catch(() => renderMetrics());
 fetch('/api/goldens').then(r => r.json()).then(data => { goldens = data; renderGoldens(); }).catch(() => renderGoldens());
 fetch('/api/tool_goldens').then(r => r.json()).then(data => { toolGoldens = data; renderToolGoldens(); }).catch(() => renderToolGoldens());
 fetch('/api/conv_goldens').then(r => r.json()).then(data => { convGoldens = data; renderConvGoldens(); }).catch(() => renderConvGoldens());
+fetch('/api/tool_defs').then(r => r.json()).then(data => { toolDefs = data; renderToolDefs(); }).catch(() => renderToolDefs());
 fetch('/api/optimizer_config').then(r => r.json()).then(data => {
   document.getElementById('optAlgo').value = data.algorithm || 'GEPA';
-  document.getElementById('optIter').value = data.iterations || 5;
-  document.getElementById('optMetric').value = data.metric || 'AnswerRelevancy';
-  document.getElementById('optThreshold').value = data.threshold || 0.7;
+  document.getElementById('optIter').value = data.iterations || 10;
+  document.getElementById('optThreshold').value = data.threshold || 0.85;
 }).catch(() => {});
 
 function updateButtonState() {
@@ -494,6 +557,151 @@ function showQuickStatus(msg) {
   setTimeout(() => { s.className = 'status'; }, 3000);
 }
 
+// Evaluation Metrics
+function renderMetrics() {
+  // Builtin metrics
+  const builtin = evalConfig.builtin_metrics || {};
+  const ar = builtin.answer_relevancy || { enabled: true, threshold: 0.8 };
+  const hal = builtin.hallucination || { enabled: true, threshold: 0.7 };
+  document.getElementById('builtinAnswerRelevancy').checked = ar.enabled !== false;
+  document.getElementById('thresholdAnswerRelevancy').value = ar.threshold != null ? ar.threshold : 0.8;
+  document.getElementById('builtinHallucination').checked = hal.enabled !== false;
+  document.getElementById('thresholdHallucination').value = hal.threshold != null ? hal.threshold : 0.7;
+
+  // Custom metrics
+  const customs = evalConfig.custom_metrics || [];
+  const container = document.getElementById('customMetricsContainer');
+  const empty = document.getElementById('customMetricsEmpty');
+  if (!customs.length) { container.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  container.innerHTML = customs.map((m, i) => {
+    const params = m.eval_params || [];
+    return `<div class="golden-item">
+      <button class="golden-remove" onclick="removeCustomMetric(${i})">&times;</button>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+        <div class="golden-field" style="flex:1;min-width:160px;"><div class="golden-label">Name</div>
+        <input class="golden-input" value="${escAttr(m.name || '')}" onchange="updateCustomMetric(${i},'name',this.value)" placeholder="Metric name"></div>
+        <div class="golden-field" style="width:80px;"><div class="golden-label">Threshold</div>
+        <input type="number" class="golden-input" value="${m.threshold != null ? m.threshold : 0.5}" min="0" max="1" step="0.05" onchange="updateCustomMetric(${i},'threshold',parseFloat(this.value))"></div>
+        <div class="golden-field" style="min-width:120px;"><div class="golden-label">Apply To</div>
+        <select class="golden-input" onchange="updateCustomMetric(${i},'apply_to',this.value)" style="cursor:pointer;">
+          <option value="all" ${m.apply_to==='all'?'selected':''}>all</option>
+          <option value="single_turn" ${m.apply_to==='single_turn'?'selected':''}>single_turn</option>
+          <option value="conversation" ${m.apply_to==='conversation'?'selected':''}>conversation</option>
+          <option value="turn" ${m.apply_to==='turn'?'selected':''}>turn</option>
+        </select></div>
+      </div>
+      <div class="golden-field"><div class="golden-label">Criteria</div>
+      <textarea class="golden-textarea" onchange="updateCustomMetric(${i},'criteria',this.value)" placeholder="Describe what this metric evaluates...">${escHtml(m.criteria || '')}</textarea></div>
+      <div class="golden-field"><div class="golden-label">Eval Params</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" ${params.includes('INPUT')?'checked':''} onchange="toggleEvalParam(${i},'INPUT',this.checked)"> INPUT</label>
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" ${params.includes('ACTUAL_OUTPUT')?'checked':''} onchange="toggleEvalParam(${i},'ACTUAL_OUTPUT',this.checked)"> ACTUAL_OUTPUT</label>
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" ${params.includes('EXPECTED_OUTPUT')?'checked':''} onchange="toggleEvalParam(${i},'EXPECTED_OUTPUT',this.checked)"> EXPECTED_OUTPUT</label>
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" ${params.includes('CONTEXT')?'checked':''} onchange="toggleEvalParam(${i},'CONTEXT',this.checked)"> CONTEXT</label>
+      </div></div>
+    </div>`;
+  }).join('');
+}
+
+function addCustomMetric() {
+  if (!evalConfig.custom_metrics) evalConfig.custom_metrics = [];
+  evalConfig.custom_metrics.push({ name: '', criteria: '', threshold: 0.5, apply_to: 'all', eval_params: ['INPUT', 'ACTUAL_OUTPUT'] });
+  renderMetrics();
+  const items = document.querySelectorAll('#customMetricsContainer .golden-item');
+  const last = items[items.length - 1];
+  if (last) { last.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => { last.querySelector('.golden-input').focus(); }, 300); }
+}
+
+function removeCustomMetric(i) {
+  evalConfig.custom_metrics.splice(i, 1);
+  renderMetrics();
+}
+
+function updateCustomMetric(i, field, value) {
+  if (!evalConfig.custom_metrics) return;
+  evalConfig.custom_metrics[i][field] = value;
+}
+
+function toggleEvalParam(i, param, checked) {
+  if (!evalConfig.custom_metrics || !evalConfig.custom_metrics[i]) return;
+  if (!evalConfig.custom_metrics[i].eval_params) evalConfig.custom_metrics[i].eval_params = [];
+  if (checked && !evalConfig.custom_metrics[i].eval_params.includes(param)) {
+    evalConfig.custom_metrics[i].eval_params.push(param);
+  }
+  if (!checked) {
+    evalConfig.custom_metrics[i].eval_params = evalConfig.custom_metrics[i].eval_params.filter(p => p !== param);
+  }
+}
+
+function saveEvalConfig() {
+  const config = {
+    builtin_metrics: {
+      answer_relevancy: {
+        enabled: document.getElementById('builtinAnswerRelevancy').checked,
+        threshold: parseFloat(document.getElementById('thresholdAnswerRelevancy').value) || 0.8
+      },
+      hallucination: {
+        enabled: document.getElementById('builtinHallucination').checked,
+        threshold: parseFloat(document.getElementById('thresholdHallucination').value) || 0.7
+      }
+    },
+    custom_metrics: (evalConfig.custom_metrics || []).filter(m => m.name && m.name.trim()),
+    cohorts: evalConfig.cohorts || [],
+    template_variables: evalConfig.template_variables || {},
+    conversation_metrics: evalConfig.conversation_metrics || []
+  };
+  fetch('/api/eval_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(config) })
+  .then(r => r.json()).then(d => { if (d.success) { evalConfig = config; showQuickStatus('Evaluation metrics saved!'); } });
+}
+
+// Test Config
+function testConfig() {
+  document.getElementById('btnTestConfig').disabled = true;
+  const status = document.getElementById('testConfigStatus');
+  const results = document.getElementById('testConfigResults');
+  status.className = 'status visible status-running';
+  status.innerHTML = '<span class="spinner"></span>Testing configuration...';
+  results.classList.remove('visible');
+
+  fetch('/api/test_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({}) })
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('btnTestConfig').disabled = false;
+    if (data.success) {
+      status.className = 'status visible status-done';
+      status.innerHTML = '&#10003; Configuration valid! ' + data.metrics_count + ' metrics loaded.';
+      let html = '';
+      if (data.results && data.results.length) {
+        html += '<div style="margin-top:8px;">';
+        data.results.forEach(r => {
+          const cls = r.passed ? 'score-pass' : 'score-fail';
+          html += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border-subtle);">';
+          html += '<span style="font-size:12px;">' + r.metric + '</span>';
+          html += '<span class="score ' + cls + '" style="font-size:12px;">' + (r.score != null ? r.score.toFixed(2) : '-') + '</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+      if (data.warnings && data.warnings.length) {
+        html += '<div style="margin-top:8px;color:var(--accent);font-size:11px;">';
+        data.warnings.forEach(w => { html += '<div>⚠ ' + w + '</div>'; });
+        html += '</div>';
+      }
+      results.innerHTML = html;
+      results.classList.add('visible');
+    } else {
+      status.className = 'status visible status-error';
+      status.innerHTML = '&#10007; ' + (data.message || 'Configuration test failed');
+    }
+  })
+  .catch(err => {
+    document.getElementById('btnTestConfig').disabled = false;
+    status.className = 'status visible status-error';
+    status.innerHTML = '&#10007; Error: ' + err.message;
+  });
+}
+
 // Tool Goldens
 function renderToolGoldens() {
   const container = document.getElementById('toolGoldensContainer');
@@ -536,6 +744,43 @@ function saveToolGoldens() {
   .then(r => r.json()).then(data => { if (data.success) { toolGoldens = clean; renderToolGoldens(); showQuickStatus('Tool tests saved!'); } });
 }
 
+// Tool Definitions
+function toggleToolDefSection() { document.getElementById('toolDefSection').classList.toggle('visible'); }
+function renderToolDefs() {
+  const container = document.getElementById('toolDefsContainer');
+  if (!toolDefs.length) { container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:12px 0;">No tool definitions. Add one to get started.</div>'; return; }
+  container.innerHTML = toolDefs.map((td, i) => {
+    const fn = td.function || {};
+    const paramsStr = JSON.stringify(fn.parameters || {type:"object",properties:{},required:[]}, null, 2);
+    return '<div class="golden-item">' +
+      '<button class="golden-remove" onclick="removeToolDef(' + i + ')">&times;</button>' +
+      '<div class="golden-field"><div class="golden-label">Tool Name</div>' +
+      '<input class="golden-input" value="' + escAttr(fn.name || '') + '" onchange="updateToolDef(' + i + ',&quot;name&quot;,this.value)" placeholder="e.g. schedule_callback_tool"></div>' +
+      '<div class="golden-field"><div class="golden-label">Description</div>' +
+      '<input class="golden-input" value="' + escAttr(fn.description || '') + '" onchange="updateToolDef(' + i + ',&quot;description&quot;,this.value)" placeholder="What the tool does..."></div>' +
+      '<div class="golden-field"><div class="golden-label">Parameters JSON</div>' +
+      '<textarea class="golden-textarea" onchange="updateToolDef(' + i + ',&quot;parameters&quot;,this.value)" style="min-height:80px;">' + escHtml(paramsStr) + '</textarea></div>' +
+    '</div>';
+  }).join('');
+}
+function addToolDef() {
+  toolDefs.push({type: "function", function: {name: "", description: "", parameters: {type: "object", properties: {}, required: []}}});
+  renderToolDefs();
+  const items = document.querySelectorAll('#toolDefsContainer .golden-item');
+  const last = items[items.length - 1];
+  if (last) { last.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => { last.querySelector('.golden-input').focus(); }, 300); }
+}
+function removeToolDef(i) { toolDefs.splice(i, 1); renderToolDefs(); }
+function updateToolDef(i, field, value) {
+  if (!toolDefs[i].function) toolDefs[i].function = {};
+  if (field === 'parameters') { try { toolDefs[i].function.parameters = JSON.parse(value); } catch(e) {} }
+  else { toolDefs[i].function[field] = value; }
+}
+function saveToolDefs() {
+  fetch('/api/tool_defs', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(toolDefs) })
+  .then(r => r.json()).then(data => { if (data.success) { showQuickStatus('Tool definitions saved!'); } });
+}
+
 // Conversation Goldens
 function renderConvGoldens() {
   const container = document.getElementById('convGoldensContainer');
@@ -552,11 +797,23 @@ function renderConvGoldens() {
         <button class="golden-remove" style="position:static;width:20px;height:20px;font-size:11px;" onclick="removeConvTurn(${i},${ti})">&times;</button>
       </div>`;
     }).join('');
-    const criteria = (c.eval_criteria || []).join(', ');
+    const cohort = c.cohort || '';
+    const templateVars = c.template_vars || {};
+    const tvDisplay = Object.entries(templateVars).map(([k,v]) => k + ': ' + v).join(', ');
+    const cohortOptions = (evalConfig.cohorts || []).map(ch => '<option value="' + escAttr(ch.name) + '"' + (cohort===ch.name?' selected':'') + '>' + escHtml(ch.name) + '</option>').join('');
     return `<div class="golden-item">
       <button class="golden-remove" onclick="removeConvGolden(${i})">&times;</button>
       <div class="golden-field"><div class="golden-label">Scenario Name</div>
       <input class="golden-input" value="${escAttr(c.scenario || '')}" onchange="convGoldens[${i}].scenario=this.value" placeholder="e.g. User objects mid-pitch"></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <div class="golden-field" style="flex:1;min-width:120px;"><div class="golden-label">Cohort</div>
+        <select class="golden-input" onchange="convGoldens[${i}].cohort=this.value" style="cursor:pointer;">
+          <option value="">— No cohort —</option>
+          ${cohortOptions}
+        </select></div>
+        <div class="golden-field" style="flex:2;min-width:200px;"><div class="golden-label">Template Variables <span style="font-weight:300;opacity:0.6">(JSON)</span></div>
+        <input class="golden-input" value="${escAttr(JSON.stringify(templateVars))}" onchange="try{convGoldens[${i}].template_vars=JSON.parse(this.value)}catch(e){}" placeholder='{"participantName":"...", "cohort":"..."}'></div>
+      </div>
       <div class="golden-field"><div class="golden-label">Eval Criteria</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" ${c.eval_criteria?.includes('flow_correctness')?'checked':''} onchange="toggleConvCriteria(${i},'flow_correctness',this.checked)"> Flow</label>
@@ -573,7 +830,7 @@ function renderConvGoldens() {
 }
 
 function addConvGolden() {
-  convGoldens.push({ scenario: '', eval_criteria: ['flow_correctness', 'language', 'edge_case'], turns: [{ role: 'user', content: '' }] });
+  convGoldens.push({ scenario: '', cohort: 'inactive', template_vars: {}, eval_criteria: ['flow_correctness', 'language', 'edge_case'], turns: [{ role: 'user', content: '' }] });
   renderConvGoldens();
   const items = document.querySelectorAll('#convGoldensContainer .golden-item');
   const last = items[items.length - 1];
@@ -591,6 +848,8 @@ function toggleConvCriteria(i, criterion, checked) {
 function saveConvGoldens() {
   const clean = convGoldens.filter(c => c.scenario && c.turns.some(t => t.content.trim())).map(c => ({
     scenario: c.scenario,
+    cohort: c.cohort || 'inactive',
+    template_vars: c.template_vars || {},
     eval_criteria: c.eval_criteria || [],
     turns: c.turns.filter(t => t.content.trim()).map(t => ({ role: 'user', content: t.content }))
   }));
@@ -599,8 +858,63 @@ function saveConvGoldens() {
 }
 
 // Generate Conversation Goldens
-function toggleConvAiSection() { document.getElementById('convAiSection').classList.toggle('visible'); document.getElementById('transcriptSection').classList.remove('visible'); }
-function toggleTranscriptSection() { document.getElementById('transcriptSection').classList.toggle('visible'); document.getElementById('convAiSection').classList.remove('visible'); }
+function toggleConvAiSection() { document.getElementById('convAiSection').classList.toggle('visible'); document.getElementById('transcriptSection').classList.remove('visible'); document.getElementById('cohortSection').classList.remove('visible'); }
+function toggleTranscriptSection() { document.getElementById('transcriptSection').classList.toggle('visible'); document.getElementById('convAiSection').classList.remove('visible'); document.getElementById('cohortSection').classList.remove('visible'); }
+function toggleCohortSection() { document.getElementById('cohortSection').classList.toggle('visible'); document.getElementById('convAiSection').classList.remove('visible'); document.getElementById('transcriptSection').classList.remove('visible'); renderCohorts(); }
+
+function renderCohorts() {
+  const cohorts = evalConfig.cohorts || [];
+  const container = document.getElementById('cohortList');
+  if (!cohorts.length) { container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:12px 0;">No cohorts defined. Add one to get started.</div>'; return; }
+  container.innerHTML = cohorts.map((ch, i) => {
+    const tvStr = JSON.stringify(ch.template_vars || {}, null, 2);
+    return '<div class="golden-item"><button class="golden-remove" onclick="removeCohort(' + i + ')">&times;</button>' +
+      '<div class="golden-field"><div class="golden-label">Name</div><input class="golden-input" value="' + escAttr(ch.name || '') + '" onchange="updateCohort(' + i + ',&quot;name&quot;,this.value)" placeholder="e.g. inactive"></div>' +
+      '<div class="golden-field"><div class="golden-label">Flow Criteria</div><textarea class="golden-textarea" onchange="updateCohort(' + i + ',&quot;flow_criteria&quot;,this.value)" placeholder="Describe the expected conversation flow for this cohort...">' + escHtml(ch.flow_criteria || '') + '</textarea></div>' +
+      '<div class="golden-field"><div class="golden-label">Template Variables (JSON)</div><textarea class="golden-textarea" onchange="updateCohort(' + i + ',&quot;template_vars&quot;,this.value)" placeholder=&apos;{"participantName": "...", "cohort": "..."}&apos;>' + escHtml(tvStr) + '</textarea></div>' +
+    '</div>';
+  }).join('');
+}
+
+function addCohort() {
+  if (!evalConfig.cohorts) evalConfig.cohorts = [];
+  evalConfig.cohorts.push({ name: '', flow_criteria: '', template_vars: {} });
+  renderCohorts();
+}
+
+function removeCohort(i) {
+  if (!evalConfig.cohorts) return;
+  evalConfig.cohorts.splice(i, 1);
+  renderCohorts();
+  renderConvGoldens();
+}
+
+function updateCohort(i, field, value) {
+  if (!evalConfig.cohorts || !evalConfig.cohorts[i]) return;
+  if (field === 'template_vars') { try { evalConfig.cohorts[i].template_vars = JSON.parse(value); } catch(e) {} }
+  else { evalConfig.cohorts[i][field] = value; }
+}
+
+function saveCohorts() {
+  const config = {
+    builtin_metrics: {
+      answer_relevancy: {
+        enabled: document.getElementById('builtinAnswerRelevancy').checked,
+        threshold: parseFloat(document.getElementById('thresholdAnswerRelevancy').value) || 0.8
+      },
+      hallucination: {
+        enabled: document.getElementById('builtinHallucination').checked,
+        threshold: parseFloat(document.getElementById('thresholdHallucination').value) || 0.7
+      }
+    },
+    custom_metrics: (evalConfig.custom_metrics || []).filter(m => m.name && m.name.trim()),
+    cohorts: evalConfig.cohorts || [],
+    template_variables: evalConfig.template_variables || {},
+    conversation_metrics: evalConfig.conversation_metrics || []
+  };
+  fetch('/api/eval_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(config) })
+  .then(r => r.json()).then(d => { if (d.success) { evalConfig = config; renderConvGoldens(); showQuickStatus('Cohorts saved!'); } });
+}
 
 function generateConvGoldens() {
   const desc = document.getElementById('convAiDescription').value.trim();
@@ -690,9 +1004,8 @@ function convertTranscriptAi() {
 function saveOptConfig() {
   const data = {
     algorithm: document.getElementById('optAlgo').value,
-    iterations: parseInt(document.getElementById('optIter').value) || 5,
-    metric: document.getElementById('optMetric').value,
-    threshold: parseFloat(document.getElementById('optThreshold').value) || 0.7
+    iterations: parseInt(document.getElementById('optIter').value) || 10,
+    threshold: parseFloat(document.getElementById('optThreshold').value) || 0.85
   };
   fetch('/api/optimizer_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) })
   .then(r => r.json()).then(d => { if (d.success) showQuickStatus('Optimizer settings saved!'); });
@@ -1198,6 +1511,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "success": _run_state.get("success", False),
                 "message": _run_state.get("message", ""),
             }).encode())
+        elif self.path == "/api/eval_config":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            if os.path.exists("eval_config.json"):
+                with open("eval_config.json") as f:
+                    self.wfile.write(f.read().encode())
+            else:
+                self.wfile.write(b'{}')
         elif self.path == "/api/optimizer_config":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -1206,7 +1528,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 with open("optimizer_config.json") as f:
                     self.wfile.write(f.read().encode())
             else:
-                self.wfile.write(b'{"algorithm":"GEPA","iterations":5,"metric":"AnswerRelevancy","threshold":0.7}')
+                self.wfile.write(b'{"algorithm":"GEPA","iterations":10,"threshold":0.85}')
+        elif self.path == "/api/tool_defs":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            if os.path.exists("config.json"):
+                with open("config.json") as f:
+                    cfg = json.load(f)
+                self.wfile.write(json.dumps(cfg.get("tools", [])).encode())
+            else:
+                self.wfile.write(b"[]")
         else:
             self.send_response(404)
             self.end_headers()
@@ -1225,6 +1557,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 json.dump(body, f, indent=2)
             self._json_response({"success": True})
 
+        elif self.path == "/api/eval_config":
+            with open("eval_config.json", "w") as f:
+                json.dump(body, f, indent=2)
+            self._json_response({"success": True})
+
         elif self.path == "/api/optimizer_config":
             with open("optimizer_config.json", "w") as f:
                 json.dump(body, f, indent=2)
@@ -1236,6 +1573,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             system_prompt = body.get("system_prompt", "")
 
             try:
+                _cfg = json.load(open("config.json")) if os.path.exists("config.json") else {}
+                _ai_model = _cfg.get("model", "gpt-4o-mini")
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
                 gen_prompt = f"""Generate exactly {count} test cases (goldens) for evaluating an LLM.
 
@@ -1253,7 +1592,7 @@ Return a JSON array with exactly {count} objects, each having:
 Return ONLY the JSON array, no other text."""
 
                 response = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model=_ai_model,
                     messages=[{"role": "user", "content": gen_prompt}],
                     temperature=0.7,
                 )
@@ -1265,6 +1604,16 @@ Return ONLY the JSON array, no other text."""
                 self._json_response({"success": True, "goldens": generated})
             except Exception as e:
                 self._json_response({"success": False, "message": str(e)})
+
+        elif self.path == "/api/tool_defs":
+            cfg = {}
+            if os.path.exists("config.json"):
+                with open("config.json") as f:
+                    cfg = json.load(f)
+            cfg["tools"] = body
+            with open("config.json", "w") as f:
+                json.dump(cfg, f, indent=2)
+            self._json_response({"success": True})
 
         elif self.path == "/api/conv_goldens":
             with open("conversation_goldens.json", "w") as f:
@@ -1278,6 +1627,8 @@ Return ONLY the JSON array, no other text."""
             eval_criteria = body.get("eval_criteria", ["flow_correctness", "language", "edge_case"])
 
             try:
+                _cfg = json.load(open("config.json")) if os.path.exists("config.json") else {}
+                _ai_model = _cfg.get("model", "gpt-4o-mini")
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
                 gen_prompt = f"""Generate exactly {count} conversation test scenarios for evaluating a voice/chat agent.
 
@@ -1301,7 +1652,7 @@ Vary the scenarios: include happy paths, objection handling, confusion, early ex
 Return ONLY the JSON array, no other text."""
 
                 response = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model=_ai_model,
                     messages=[{"role": "user", "content": gen_prompt}],
                     temperature=0.8,
                 )
@@ -1320,6 +1671,8 @@ Return ONLY the JSON array, no other text."""
             system_prompt = body.get("system_prompt", "")
 
             try:
+                _cfg = json.load(open("config.json")) if os.path.exists("config.json") else {}
+                _ai_model = _cfg.get("model", "gpt-4o-mini")
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
                 gen_prompt = f"""Analyze this conversation transcript and convert it into a test scenario for evaluating an AI agent.
 
@@ -1344,7 +1697,7 @@ Clean up the messages if needed (fix typos, remove timestamps) but keep the natu
 Return ONLY the JSON object, no other text."""
 
                 response = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model=_ai_model,
                     messages=[{"role": "user", "content": gen_prompt}],
                     temperature=0.3,
                 )
@@ -1354,6 +1707,125 @@ Return ONLY the JSON object, no other text."""
                     content = content.rsplit("```", 1)[0]
                 scenario = json.loads(content)
                 self._json_response({"success": True, "scenario": scenario})
+            except Exception as e:
+                self._json_response({"success": False, "message": str(e)})
+
+        elif self.path == "/api/test_config":
+            try:
+                # Load eval_config
+                eval_cfg = {}
+                if os.path.exists("eval_config.json"):
+                    with open("eval_config.json") as f:
+                        eval_cfg = json.load(f)
+
+                # Load config.json
+                model_cfg = {}
+                if os.path.exists("config.json"):
+                    with open("config.json") as f:
+                        model_cfg = json.load(f)
+
+                # Validate API key
+                api_key = os.getenv("OPENAI_API_KEY")
+                if not api_key:
+                    self._json_response({"success": False, "message": "OPENAI_API_KEY not set"})
+                    return
+
+                # Count metrics
+                warnings = []
+                builtin_metrics = eval_cfg.get("builtin_metrics", {})
+                custom_metrics = eval_cfg.get("custom_metrics", [])
+
+                enabled_builtins = []
+                ar = builtin_metrics.get("answer_relevancy", {})
+                if ar.get("enabled", True):
+                    enabled_builtins.append(("AnswerRelevancy", ar.get("threshold", 0.8)))
+                hal = builtin_metrics.get("hallucination", {})
+                if hal.get("enabled", True):
+                    enabled_builtins.append(("Hallucination", hal.get("threshold", 0.7)))
+
+                if not custom_metrics:
+                    warnings.append("No custom metrics configured — only builtins will run")
+
+                metrics_count = len(enabled_builtins) + len(custom_metrics)
+
+                if metrics_count == 0:
+                    self._json_response({"success": False, "message": "No metrics enabled. Enable at least one builtin or add a custom metric."})
+                    return
+
+                # Quick LLM test
+                client = OpenAI(api_key=api_key)
+                test_input = "Hello, this is a test."
+                response = client.chat.completions.create(
+                    model=model_cfg.get("model", "gpt-4o-mini"),
+                    messages=[{"role": "user", "content": test_input}],
+                    max_tokens=150,
+                )
+                actual_output = response.choices[0].message.content.strip()
+
+                # Build metrics and measure
+                results = []
+                try:
+                    from deepeval.metrics import AnswerRelevancyMetric, GEval, HallucinationMetric
+                    from deepeval.test_case import LLMTestCase, SingleTurnParams
+
+                    test_case = LLMTestCase(
+                        input=test_input,
+                        actual_output=actual_output,
+                        expected_output="Hello! How can I help you today?",
+                        context=["This is a simple greeting test."]
+                    )
+
+                    for name, threshold in enabled_builtins:
+                        try:
+                            if name == "AnswerRelevancy":
+                                metric = AnswerRelevancyMetric(threshold=threshold)
+                            elif name == "Hallucination":
+                                metric = HallucinationMetric(threshold=threshold)
+                            else:
+                                continue
+                            metric.measure(test_case)
+                            results.append({"metric": name, "score": metric.score, "passed": metric.score >= threshold})
+                        except Exception as me:
+                            results.append({"metric": name, "score": None, "passed": False})
+                            warnings.append(f"{name} metric error: {str(me)[:100]}")
+
+                    for cm in custom_metrics:
+                        try:
+                            eval_params = []
+                            for p in cm.get("eval_params", []):
+                                param_map = {
+                                    "INPUT": SingleTurnParams.INPUT,
+                                    "ACTUAL_OUTPUT": SingleTurnParams.ACTUAL_OUTPUT,
+                                    "EXPECTED_OUTPUT": SingleTurnParams.EXPECTED_OUTPUT,
+                                    "CONTEXT": SingleTurnParams.CONTEXT,
+                                }
+                                if p in param_map:
+                                    eval_params.append(param_map[p])
+
+                            metric = GEval(
+                                name=cm.get("name", "Custom"),
+                                criteria=cm.get("criteria", ""),
+                                evaluation_params=eval_params,
+                                threshold=cm.get("threshold", 0.5),
+                            )
+                            metric.measure(test_case)
+                            passed = metric.score >= cm.get("threshold", 0.5)
+                            results.append({"metric": cm.get("name", "Custom"), "score": metric.score, "passed": passed})
+                        except Exception as me:
+                            results.append({"metric": cm.get("name", "Custom"), "score": None, "passed": False})
+                            warnings.append(f"{cm.get('name', 'Custom')} metric error: {str(me)[:100]}")
+
+                except ImportError as ie:
+                    warnings.append(f"DeepEval not fully installed: {str(ie)[:100]}")
+                    # Still return success since LLM call worked
+                    results = []
+
+                self._json_response({
+                    "success": True,
+                    "metrics_count": metrics_count,
+                    "results": results,
+                    "warnings": warnings
+                })
             except Exception as e:
                 self._json_response({"success": False, "message": str(e)})
 
