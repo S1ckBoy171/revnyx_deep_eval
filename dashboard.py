@@ -1573,6 +1573,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             system_prompt = body.get("system_prompt", "")
 
             try:
+                _cfg = json.load(open("config.json")) if os.path.exists("config.json") else {}
+                _ai_model = _cfg.get("model", "gpt-4o-mini")
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
                 gen_prompt = f"""Generate exactly {count} test cases (goldens) for evaluating an LLM.
 
@@ -1590,7 +1592,7 @@ Return a JSON array with exactly {count} objects, each having:
 Return ONLY the JSON array, no other text."""
 
                 response = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model=_ai_model,
                     messages=[{"role": "user", "content": gen_prompt}],
                     temperature=0.7,
                 )
@@ -1625,6 +1627,8 @@ Return ONLY the JSON array, no other text."""
             eval_criteria = body.get("eval_criteria", ["flow_correctness", "language", "edge_case"])
 
             try:
+                _cfg = json.load(open("config.json")) if os.path.exists("config.json") else {}
+                _ai_model = _cfg.get("model", "gpt-4o-mini")
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
                 gen_prompt = f"""Generate exactly {count} conversation test scenarios for evaluating a voice/chat agent.
 
@@ -1648,7 +1652,7 @@ Vary the scenarios: include happy paths, objection handling, confusion, early ex
 Return ONLY the JSON array, no other text."""
 
                 response = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model=_ai_model,
                     messages=[{"role": "user", "content": gen_prompt}],
                     temperature=0.8,
                 )
@@ -1667,6 +1671,8 @@ Return ONLY the JSON array, no other text."""
             system_prompt = body.get("system_prompt", "")
 
             try:
+                _cfg = json.load(open("config.json")) if os.path.exists("config.json") else {}
+                _ai_model = _cfg.get("model", "gpt-4o-mini")
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
                 gen_prompt = f"""Analyze this conversation transcript and convert it into a test scenario for evaluating an AI agent.
 
@@ -1691,7 +1697,7 @@ Clean up the messages if needed (fix typos, remove timestamps) but keep the natu
 Return ONLY the JSON object, no other text."""
 
                 response = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model=_ai_model,
                     messages=[{"role": "user", "content": gen_prompt}],
                     temperature=0.3,
                 )

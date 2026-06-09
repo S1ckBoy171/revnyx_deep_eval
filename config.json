@@ -1,6 +1,6 @@
 {
-  "model": "gpt-4.1-nano",
-  "optimizer_model": "gpt-4.1",
+  "model": "gpt-5.4-mini-2026-03-17",
+  "optimizer_model": "gpt-5.5-2026-04-23",
   "temperature": 0.3,
   "max_tokens": 2048,
   "tools": [
