@@ -47,8 +47,8 @@ jobs:
                   python-version: ${{ env.PYTHON_VERSION }}
                   cache: "pip"
 
-            - name: Install lint tools
-              run: pip install ruff
+            - name: Install dependencies
+              run: pip install -r requirements.txt
 
             - name: Ruff check
               run: ruff check .
@@ -80,9 +80,7 @@ jobs:
                   cache: "pip"
 
             - name: Install dependencies
-              run: |
-                  pip install --upgrade pip
-                  pip install deepeval pytest openai
+              run: pip install -r requirements.txt
 
             - name: Run ${{ matrix.suite }} tests
               env:
