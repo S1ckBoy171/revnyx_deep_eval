@@ -1,0 +1,122 @@
+name: LLM Eval CI
+
+on:
+    # Manual trigger with configurable test suite
+    workflow_dispatch:
+        inputs:
+            suite:
+                description: "Test suite to run (all, prompts, tools, conversation)"
+                required: false
+                default: "all"
+                type: choice
+                options:
+                    - all
+                    - prompts
+                    - tools
+                    - conversation
+
+    # Run on PR only when eval-related files change
+    pull_request:
+        branches: [main]
+        paths:
+            - "test_*.py"
+            - "config.json"
+            - "llm_client.py"
+            - "optimize_*.py"
+            - ".github/workflows/ci.yml"
+
+# Cancel in-progress runs for the same branch/PR
+concurrency:
+    group: eval-${{ github.ref }}
+    cancel-in-progress: true
+
+env:
+    PYTHON_VERSION: "3.11"
+
+jobs:
+    # ─── Fast gate: lint + syntax (runs on every trigger, cheap) ───
+    lint:
+        name: Lint & Validate
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: ${{ env.PYTHON_VERSION }}
+                  cache: "pip"
+
+            - name: Install dependencies
+              run: pip install -r requirements.txt
+
+            - name: Ruff check
+              run: ruff check . || true
+
+            - name: Validate config.json
+              run: python -c "import json; json.load(open('config.json'))"
+
+    # ─── Expensive gate: LLM eval tests (parallel by suite) ───
+    evaluate:
+        name: Eval / ${{ matrix.suite }}
+        needs: lint
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        strategy:
+            fail-fast: false
+            matrix:
+                suite: [prompts, tools, conversation]
+                exclude:
+                    - suite: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'all' && inputs.suite != 'prompts' && 'prompts' || '' }}
+                    - suite: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'all' && inputs.suite != 'tools' && 'tools' || '' }}
+                    - suite: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'all' && inputs.suite != 'conversation' && 'conversation' || '' }}
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: ${{ env.PYTHON_VERSION }}
+                  cache: "pip"
+
+            - name: Install dependencies
+              run: pip install -r requirements.txt
+
+            - name: Run ${{ matrix.suite }} tests
+              env:
+                  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+                  DEEPEVAL_PER_ATTEMPT_TIMEOUT_SECONDS_OVERRIDE: 300
+              run: deepeval test run test_${{ matrix.suite }}.py --junit-xml results-${{ matrix.suite }}.xml
+
+            - name: Upload test results
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: eval-results-${{ matrix.suite }}-${{ github.run_id }}
+                  path: results-${{ matrix.suite }}.xml
+                  if-no-files-found: ignore
+                  retention-days: 30
+
+    # ─── Summary: aggregate results ───
+    results:
+        name: Eval Summary
+        needs: evaluate
+        if: always()
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - name: Download all results
+              uses: actions/download-artifact@v4
+              with:
+                  pattern: eval-results-*
+                  merge-multiple: true
+
+            - name: Report status
+              run: |
+                  echo "## Eval Results" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  if [ "${{ needs.evaluate.result }}" == "success" ]; then
+                    echo "All eval suites passed." >> $GITHUB_STEP_SUMMARY
+                  else
+                    echo "One or more eval suites failed. Check artifacts for details." >> $GITHUB_STEP_SUMMARY
+                  fi

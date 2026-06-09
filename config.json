@@ -1,5 +1,80 @@
 {
-  "model": "gpt-4o-mini",
+  "model": "gpt-5.4-mini-2026-03-17",
+  "optimizer_model": "gpt-5.5-2026-04-23",
   "temperature": 0.3,
-  "max_tokens": 1024
+  "max_tokens": 2048,
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "switch_language_tool",
+        "description": "Switch the voice and transcription pipeline to a different language.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "language": {
+              "type": "string",
+              "description": "The language to switch to (e.g. 'english', 'hindi', 'tamil')"
+            }
+          },
+          "required": ["language"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "schedule_callback_tool",
+        "description": "Schedule a callback for the creator at a specific time.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "time": {
+              "type": "string",
+              "description": "When to schedule the callback (e.g. 'tomorrow 9am', 'in 2 hours')"
+            },
+            "reason": {
+              "type": "string",
+              "description": "Reason for the callback"
+            }
+          },
+          "required": ["time"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "transfer_call_tool",
+        "description": "Transfer the current call to a human team member.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "description": "Reason for transfer"
+            }
+          },
+          "required": ["reason"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "add_to_do_not_call_tool",
+        "description": "Add the creator to the Do Not Call list so they won't receive future calls.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "description": "Reason for adding to DNC list"
+            }
+          },
+          "required": ["reason"]
+        }
+      }
+    }
+  ]
 }
