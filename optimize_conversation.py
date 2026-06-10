@@ -194,7 +194,7 @@ def model_callback(prompt: Prompt, golden: Golden) -> str:
             "model": config["model"],
             "messages": messages,
             "temperature": config["temperature"],
-            "max_tokens": config.get("max_tokens", 2048),
+            "max_completion_tokens": config.get("max_tokens", 2048),
         }
         if tools:
             kwargs["tools"] = tools

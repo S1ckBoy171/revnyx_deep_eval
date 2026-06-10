@@ -9,7 +9,20 @@
       "threshold": 0.7
     }
   },
-  "custom_metrics": [],
+  "custom_metrics": [
+    {
+      "name": "Output Correctness",
+      "criteria": "Determine whether the actual output closely matches the expected output in meaning, tone, and content. Score 1 if they are equivalent, 0 if completely different.",
+      "eval_params": [
+        "INPUT",
+        "ACTUAL_OUTPUT",
+        "EXPECTED_OUTPUT",
+        "CONTEXT"
+      ],
+      "threshold": 0.8,
+      "apply_to": "all"
+    }
+  ],
   "cohorts": [],
   "template_variables": {},
   "conversation_metrics": []

@@ -1,10 +1,23 @@
 [
   {
-    "input": "Szia! Tudn\u00e1l seg\u00edteni egy r\u00f6vid magyar v\u00e1laszt \u00edrni arra, hogy \"K\u00f6sz\u00f6n\u00f6m a seg\u00edts\u00e9get\"?",
-    "expected_output": "Persze! P\u00e9ld\u00e1ul: \"Sz\u00edvesen!\"",
+    "input": "Hi there! Can you say hello?",
+    "expected_output": "hello",
     "context": [
-      "A feladat a \"hu\" nyelvi/nyelvspecifikus viselked\u00e9st teszteli.",
-      "A felhaszn\u00e1l\u00f3 r\u00f6vid, term\u00e9szetes magyar v\u00e1laszt k\u00e9r."
+      "The system prompt is 'hello', so the LLM should respond with 'hello' when greeted."
+    ]
+  },
+  {
+    "input": "What do you say when I start a conversation?",
+    "expected_output": "hello, sir",
+    "context": [
+      "The system prompt is 'hello', indicating the LLM's default or expected initial response is 'hello, sir'."
+    ]
+  },
+  {
+    "input": "Please greet me.",
+    "expected_output": "hello, sir",
+    "context": [
+      "The system prompt is 'hello', so the LLM should respond with 'hello, sir' when asked to greet."
     ]
   }
 ]

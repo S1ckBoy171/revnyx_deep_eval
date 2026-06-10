@@ -511,8 +511,36 @@ body { font-family: var(--font); background: var(--bg-deep); color: var(--text-p
   </div>
 
   <div class="ai-section" id="convAiSection">
-    <div class="ai-label">Describe the conversation scenarios to generate</div>
-    <textarea class="golden-textarea" id="convAiDescription" placeholder="e.g. User calls about tax filing, gets qualified on income, receives a plan recommendation. Include objection handling and early hangup scenarios..."></textarea>
+    <div class="ai-label">Generate Conversation Scenarios</div>
+
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;">
+      <div style="flex:1;min-width:180px;">
+        <div class="golden-label">Scenario Type</div>
+        <select class="golden-input" id="convGenType" style="cursor:pointer;">
+          <option value="happy_path">Happy Path</option>
+          <option value="objection">Objection Handling</option>
+          <option value="early_exit">Early Exit / Hangup</option>
+          <option value="confusion">Confusion / Off-topic</option>
+          <option value="edge_case">Edge Cases</option>
+          <option value="mixed" selected>Mixed (All Types)</option>
+        </select>
+      </div>
+      <div style="flex:1;min-width:180px;">
+        <div class="golden-label">Assign to Cohort</div>
+        <select class="golden-input" id="convGenCohort" style="cursor:pointer;">
+          <option value="">— No cohort —</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="golden-label">Describe what the scenarios should cover</div>
+    <textarea class="golden-textarea" id="convAiDescription" placeholder="e.g. User calls about tax filing, gets qualified on income, receives a plan recommendation..."></textarea>
+
+    <div style="margin-top:12px;">
+      <div class="golden-label">Wrapper System Prompt <span style="font-weight:300;opacity:0.6">(instructs AI how to generate expected output format)</span></div>
+      <textarea class="golden-textarea" id="convGenWrapper" style="min-height:100px;" placeholder="e.g. You are generating test scenarios for a voice agent. Each scenario should have realistic user messages in Hinglish. The agent should follow this flow: greet → qualify → pitch → handle objections → close. Generate user turns that test whether the agent follows this flow correctly."></textarea>
+    </div>
+
     <div style="margin-top:10px;">
       <div class="golden-label">Eval Criteria for generated scenarios</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
@@ -955,7 +983,7 @@ function saveConvGoldens() {
 }
 
 // Generate Conversation Goldens
-function toggleConvAiSection() { document.getElementById('convAiSection').classList.toggle('visible'); document.getElementById('transcriptSection').classList.remove('visible'); document.getElementById('cohortSection').classList.remove('visible'); }
+function toggleConvAiSection() { document.getElementById('convAiSection').classList.toggle('visible'); document.getElementById('transcriptSection').classList.remove('visible'); document.getElementById('cohortSection').classList.remove('visible'); populateConvGenCohort(); }
 function toggleTranscriptSection() { document.getElementById('transcriptSection').classList.toggle('visible'); document.getElementById('convAiSection').classList.remove('visible'); document.getElementById('cohortSection').classList.remove('visible'); }
 function toggleCohortSection() { document.getElementById('cohortSection').classList.toggle('visible'); document.getElementById('convAiSection').classList.remove('visible'); document.getElementById('transcriptSection').classList.remove('visible'); renderCohorts(); }
 
@@ -1013,11 +1041,20 @@ function saveCohorts() {
   .then(r => r.json()).then(d => { if (d.success) { evalConfig = config; renderConvGoldens(); showQuickStatus('Cohorts saved!'); } });
 }
 
+function populateConvGenCohort() {
+  const sel = document.getElementById('convGenCohort');
+  const cohorts = evalConfig.cohorts || [];
+  sel.innerHTML = '<option value="">— No cohort —</option>' + cohorts.map(c => '<option value="' + escAttr(c.name) + '">' + escHtml(c.name) + '</option>').join('');
+}
+
 function generateConvGoldens() {
   const desc = document.getElementById('convAiDescription').value.trim();
   if (!desc) { document.getElementById('convAiDescription').focus(); return; }
   const count = parseInt(document.getElementById('convAiCount').value) || 3;
   const prompt = document.getElementById('promptInput').value;
+  const scenarioType = document.getElementById('convGenType').value;
+  const cohort = document.getElementById('convGenCohort').value;
+  const wrapperPrompt = document.getElementById('convGenWrapper').value.trim();
   const criteria = [];
   if (document.getElementById('convGenFlow').checked) criteria.push('flow_correctness');
   if (document.getElementById('convGenLang').checked) criteria.push('language');
@@ -1025,7 +1062,7 @@ function generateConvGoldens() {
 
   document.getElementById('btnGenerateConv').disabled = true;
   document.getElementById('convAiStatus').classList.add('visible');
-  fetch('/api/generate_conv_goldens', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ description: desc, count: count, system_prompt: prompt, eval_criteria: criteria }) })
+  fetch('/api/generate_conv_goldens', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ description: desc, count: count, system_prompt: prompt, eval_criteria: criteria, scenario_type: scenarioType, cohort: cohort, wrapper_prompt: wrapperPrompt }) })
   .then(r => r.json()).then(data => {
     document.getElementById('btnGenerateConv').disabled = false;
     document.getElementById('convAiStatus').classList.remove('visible');
@@ -1759,11 +1796,41 @@ Return ONLY the JSON array, no other text."""
             count = body.get("count", 3)
             system_prompt = body.get("system_prompt", "")
             eval_criteria = body.get("eval_criteria", ["flow_correctness", "language", "edge_case"])
+            scenario_type = body.get("scenario_type", "mixed")
+            cohort = body.get("cohort", "")
+            wrapper_prompt = body.get("wrapper_prompt", "")
+
+            scenario_type_instructions = {
+                "happy_path": "Generate ONLY happy path scenarios where the user cooperates fully, answers all questions, and the conversation reaches a successful conclusion.",
+                "objection": "Generate ONLY objection-handling scenarios where the user pushes back, raises concerns, asks difficult questions, or resists the agent's suggestions.",
+                "early_exit": "Generate ONLY early exit/hangup scenarios where the user wants to end the conversation prematurely, is busy, not interested, or hangs up mid-conversation.",
+                "confusion": "Generate ONLY confusion/off-topic scenarios where the user misunderstands, goes off-topic, asks irrelevant questions, or seems confused about the purpose of the call.",
+                "edge_case": "Generate ONLY edge case scenarios — unusual situations, boundary conditions, unexpected inputs, language switching, or rare user behaviors.",
+                "mixed": "Generate a MIX of scenario types: include happy paths, objection handling, early exits, confusion, and edge cases for comprehensive coverage.",
+            }
+            type_instruction = scenario_type_instructions.get(scenario_type, scenario_type_instructions["mixed"])
 
             try:
                 _cfg = json.load(open("config.json")) if os.path.exists("config.json") else {}
                 _ai_model = _cfg.get("model", "gpt-4o-mini")
                 client = llm_client.get_client()
+
+                wrapper_section = ""
+                if wrapper_prompt:
+                    wrapper_section = f"\n\nAdditional instructions for generation:\n{wrapper_prompt}\n"
+
+                cohort_section = ""
+                if cohort:
+                    cohort_section = f'\nAssign all generated scenarios to cohort: "{cohort}"\n'
+                    # Look up cohort flow_criteria if available
+                    if os.path.exists("eval_config.json"):
+                        with open("eval_config.json") as ecf:
+                            ec = json.load(ecf)
+                        for ch in ec.get("cohorts", []):
+                            if ch.get("name", "").lower() == cohort.lower() and ch.get("flow_criteria"):
+                                cohort_section += f'Cohort flow criteria: {ch["flow_criteria"]}\n'
+                                break
+
                 gen_prompt = f"""Generate exactly {count} conversation test scenarios for evaluating a voice/chat agent.
 
 Context about the agent being tested:
@@ -1772,16 +1839,19 @@ System prompt: {system_prompt if system_prompt else '(no system prompt provided)
 What the scenarios should cover:
 {description}
 
+Scenario type constraint:
+{type_instruction}
+{cohort_section}{wrapper_section}
 Each scenario represents a multi-turn conversation where only the USER messages are provided (the agent's responses will be generated live during testing).
 
 Return a JSON array with exactly {count} objects, each having:
 - "scenario": a short descriptive name for this test case (e.g. "Happy path - full call flow", "User objects mid-pitch")
+- "cohort": "{cohort if cohort else ''}"
 - "eval_criteria": {json.dumps(eval_criteria)}
 - "turns": an array of objects with {{"role": "user", "content": "the user message"}}
 
 Each scenario should have 3-7 user turns that simulate a realistic conversation flow.
 Make the messages natural and conversational (use Hinglish if the system prompt suggests a Hindi-speaking audience).
-Vary the scenarios: include happy paths, objection handling, confusion, early exits, off-topic tangents.
 
 Return ONLY the JSON array, no other text."""
 
