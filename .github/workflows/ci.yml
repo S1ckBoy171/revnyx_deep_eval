@@ -51,7 +51,7 @@ jobs:
               run: pip install -r requirements.txt
 
             - name: Ruff check
-              run: ruff check . || true
+              run: ruff check .
 
             - name: Validate config.json
               run: python -c "import json; json.load(open('config.json'))"
@@ -65,11 +65,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                suite: [prompts, tools, conversation]
-                exclude:
-                    - suite: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'all' && inputs.suite != 'prompts' && 'prompts' || '' }}
-                    - suite: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'all' && inputs.suite != 'tools' && 'tools' || '' }}
-                    - suite: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'all' && inputs.suite != 'conversation' && 'conversation' || '' }}
+                suite: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'all' && fromJSON(format('["{0}"]', inputs.suite)) || fromJSON('["prompts","tools","conversation"]') }}
 
         steps:
             - uses: actions/checkout@v4
@@ -86,14 +82,15 @@ jobs:
               env:
                   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
                   DEEPEVAL_PER_ATTEMPT_TIMEOUT_SECONDS_OVERRIDE: 300
-              run: deepeval test run test_${{ matrix.suite }}.py --junit-xml results-${{ matrix.suite }}.xml
+              run: deepeval test run test_${{ matrix.suite }}.py --verbose-mode
 
             - name: Upload test results
               if: always()
               uses: actions/upload-artifact@v4
               with:
                   name: eval-results-${{ matrix.suite }}-${{ github.run_id }}
-                  path: results-${{ matrix.suite }}.xml
+                  path: |
+                      .deepeval-cache.json
                   if-no-files-found: ignore
                   retention-days: 30
 

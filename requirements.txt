@@ -2,3 +2,4 @@ deepeval
 pytest
 openai
 ruff
+streamlit

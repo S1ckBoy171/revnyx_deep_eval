@@ -1,0 +1,8 @@
+services:
+  eval:
+    build: .
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DEEPEVAL_PER_ATTEMPT_TIMEOUT_SECONDS_OVERRIDE=300
+    volumes:
+      - .:/app
