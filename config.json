@@ -17,7 +17,9 @@
               "description": "The language to switch to (e.g. 'english', 'hindi', 'tamil')"
             }
           },
-          "required": ["language"]
+          "required": [
+            "language"
+          ]
         }
       }
     },
@@ -38,7 +40,9 @@
               "description": "Reason for the callback"
             }
           },
-          "required": ["time"]
+          "required": [
+            "time"
+          ]
         }
       }
     },
@@ -55,7 +59,9 @@
               "description": "Reason for transfer"
             }
           },
-          "required": ["reason"]
+          "required": [
+            "reason"
+          ]
         }
       }
     },
@@ -72,7 +78,9 @@
               "description": "Reason for adding to DNC list"
             }
           },
-          "required": ["reason"]
+          "required": [
+            "reason"
+          ]
         }
       }
     }

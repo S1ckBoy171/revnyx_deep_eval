@@ -70,7 +70,7 @@ def call(user_input: str, system_prompt: str = None, template_vars: dict = None,
         "model": config["model"],
         "messages": messages,
         "temperature": config["temperature"],
-        "max_tokens": config.get("max_tokens", 2048),
+        "max_completion_tokens": config.get("max_tokens", 2048),
     }
 
     if use_tools:
@@ -110,7 +110,7 @@ def call_conversation(messages_history: list, system_prompt: str = None, templat
         "model": config["model"],
         "messages": messages,
         "temperature": config["temperature"],
-        "max_tokens": config.get("max_tokens", 2048),
+        "max_completion_tokens": config.get("max_tokens", 2048),
     }
 
     if use_tools:

@@ -1892,7 +1892,7 @@ Return ONLY the JSON object, no other text."""
                 response = client.chat.completions.create(
                     model=model_cfg.get("model", "gpt-4o-mini"),
                     messages=[{"role": "user", "content": test_input}],
-                    max_tokens=150,
+                    max_completion_tokens=150,
                 )
                 actual_output = response.choices[0].message.content.strip()
 
