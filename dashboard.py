@@ -12,7 +12,8 @@ import threading
 import time as _time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from dotenv import load_dotenv
-from openai import OpenAI
+
+import llm_client
 
 _ansi_re = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?\x07')
 
@@ -1575,7 +1576,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             try:
                 _cfg = json.load(open("config.json")) if os.path.exists("config.json") else {}
                 _ai_model = _cfg.get("model", "gpt-4o-mini")
-                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                client = llm_client.get_client()
                 gen_prompt = f"""Generate exactly {count} test cases (goldens) for evaluating an LLM.
 
 Context about the LLM being tested:
@@ -1629,7 +1630,7 @@ Return ONLY the JSON array, no other text."""
             try:
                 _cfg = json.load(open("config.json")) if os.path.exists("config.json") else {}
                 _ai_model = _cfg.get("model", "gpt-4o-mini")
-                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                client = llm_client.get_client()
                 gen_prompt = f"""Generate exactly {count} conversation test scenarios for evaluating a voice/chat agent.
 
 Context about the agent being tested:
@@ -1673,7 +1674,7 @@ Return ONLY the JSON array, no other text."""
             try:
                 _cfg = json.load(open("config.json")) if os.path.exists("config.json") else {}
                 _ai_model = _cfg.get("model", "gpt-4o-mini")
-                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                client = llm_client.get_client()
                 gen_prompt = f"""Analyze this conversation transcript and convert it into a test scenario for evaluating an AI agent.
 
 Transcript:
@@ -1725,9 +1726,9 @@ Return ONLY the JSON object, no other text."""
                         model_cfg = json.load(f)
 
                 # Validate API key
-                api_key = os.getenv("OPENAI_API_KEY")
+                api_key = os.getenv("AZURE_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
                 if not api_key:
-                    self._json_response({"success": False, "message": "OPENAI_API_KEY not set"})
+                    self._json_response({"success": False, "message": "AZURE_OPENAI_API_KEY / OPENAI_API_KEY not set"})
                     return
 
                 # Count metrics
@@ -1753,7 +1754,7 @@ Return ONLY the JSON object, no other text."""
                     return
 
                 # Quick LLM test
-                client = OpenAI(api_key=api_key)
+                client = llm_client.get_client()
                 test_input = "Hello, this is a test."
                 response = client.chat.completions.create(
                     model=model_cfg.get("model", "gpt-4o-mini"),

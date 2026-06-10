@@ -9,7 +9,7 @@ LLM client wrapper for the Revnyx DeepEval project.
 import os
 import json
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import OpenAI, AzureOpenAI
 
 load_dotenv()
 
@@ -38,6 +38,13 @@ def inject_template_vars(prompt: str, template_vars: dict) -> str:
 
 
 def get_client():
+    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    if azure_endpoint:
+        return AzureOpenAI(
+            api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+            azure_endpoint=azure_endpoint,
+            api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-10-21"),
+        )
     return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
