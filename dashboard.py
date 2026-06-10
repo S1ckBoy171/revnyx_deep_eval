@@ -18,7 +18,7 @@ _ansi_re = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?\x07')
 
 load_dotenv()
 
-PORT = 8050
+PORT = int(os.environ.get("PORT", 8050))
 RESULTS_FILE = "results.json"
 GOLDENS_FILE = "goldens.json"
 TOOL_GOLDENS_FILE = "tool_goldens.json"
