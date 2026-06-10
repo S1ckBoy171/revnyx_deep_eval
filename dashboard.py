@@ -7,6 +7,7 @@ Then open: http://localhost:8050
 import json
 import os
 import re
+import secrets
 import subprocess
 import threading
 import time as _time
@@ -20,11 +21,106 @@ _ansi_re = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?\x07')
 load_dotenv()
 
 PORT = int(os.environ.get("PORT", 8050))
+# Bind to localhost for local testing; deployments (which inject PORT) get 0.0.0.0
+HOST = os.environ.get("HOST", "0.0.0.0" if "PORT" in os.environ else "127.0.0.1")
 RESULTS_FILE = "results.json"
 GOLDENS_FILE = "goldens.json"
 TOOL_GOLDENS_FILE = "tool_goldens.json"
 
 _run_state = {"running": False, "log": "", "done": False, "success": False, "message": ""}
+
+DASHBOARD_PASSWORD = "1qaz@54321"
+_SESSION_TOKEN = secrets.token_hex(32)  # rotates on restart; all sessions invalidated
+
+LOGIN_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revnyx DeepEval — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Outfit', sans-serif;
+  background: #09090b;
+  color: #fafafa;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card {
+  background: #111113;
+  border: 1px solid #27272a;
+  border-radius: 16px;
+  padding: 40px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+.card img { height: 48px; margin-bottom: 16px; }
+.card h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+.card p { font-size: 14px; color: #a1a1aa; margin-bottom: 24px; }
+input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #27272a;
+  background: #18181b;
+  color: #fafafa;
+  font-family: inherit;
+  font-size: 14px;
+  margin-bottom: 12px;
+  outline: none;
+}
+input:focus { border-color: #6366f1; }
+button {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: #6366f1;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+button:hover { background: #4f46e5; }
+.error { color: #f87171; font-size: 13px; margin-top: 12px; min-height: 18px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <img src="/logo.png" alt="Revnyx" onerror="this.style.display='none'">
+  <h1>Revnyx DeepEval</h1>
+  <p>Enter the password to continue</p>
+  <form id="loginForm">
+    <input type="password" id="password" placeholder="Password" autofocus autocomplete="current-password">
+    <button type="submit">Sign in</button>
+  </form>
+  <div class="error" id="error"></div>
+</div>
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const res = await fetch('/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({password: document.getElementById('password').value}),
+  });
+  const data = await res.json();
+  if (data.success) { location.href = '/'; }
+  else {
+    document.getElementById('error').textContent = 'Incorrect password';
+    document.getElementById('password').value = '';
+  }
+});
+</script>
+</body>
+</html>"""
 
 HTML = """<!DOCTYPE html>
 <html lang="en">
@@ -1453,12 +1549,28 @@ document.getElementById('promptInput').addEventListener('dblclick', function() {
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
+    def _is_authed(self):
+        cookies = self.headers.get("Cookie", "")
+        for part in cookies.split(";"):
+            name, _, value = part.strip().partition("=")
+            if name == "dash_session" and secrets.compare_digest(value, _SESSION_TOKEN):
+                return True
+        return False
+
     def do_GET(self):
         if self.path == "/" or self.path == "/index.html":
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
             self.end_headers()
-            self.wfile.write(HTML.encode())
+            if self._is_authed():
+                self.wfile.write(HTML.encode())
+            else:
+                self.wfile.write(LOGIN_HTML.encode())
+        elif self.path.startswith("/api/") and not self._is_authed():
+            self.send_response(401)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"error": "unauthorized"}')
         elif self.path == "/logo.png":
             self.send_response(200)
             self.send_header("Content-Type", "image/png")
@@ -1547,6 +1659,27 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         content_length = int(self.headers["Content-Length"])
         body = json.loads(self.rfile.read(content_length))
+
+        if self.path == "/login":
+            if secrets.compare_digest(str(body.get("password", "")), DASHBOARD_PASSWORD):
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header(
+                    "Set-Cookie",
+                    f"dash_session={_SESSION_TOKEN}; Path=/; HttpOnly; SameSite=Strict",
+                )
+                self.end_headers()
+                self.wfile.write(b'{"success": true}')
+            else:
+                self._json_response({"success": False})
+            return
+
+        if not self._is_authed():
+            self.send_response(401)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"error": "unauthorized"}')
+            return
 
         if self.path == "/api/goldens":
             with open(GOLDENS_FILE, "w") as f:
@@ -1925,9 +2058,10 @@ class QuietHTTPServer(HTTPServer):
 
 
 if __name__ == "__main__":
-    server = QuietHTTPServer(("0.0.0.0", PORT), DashboardHandler)
-    print(f"Dashboard running at http://0.0.0.0:{PORT}")
-    print(f"Accessible on your network at http://192.168.68.57:{PORT}")
+    server = QuietHTTPServer((HOST, PORT), DashboardHandler)
+    print(f"Dashboard running at http://{HOST}:{PORT}")
+    if HOST == "127.0.0.1":
+        print(f"Open: http://localhost:{PORT}")
     print("Press Ctrl+C to stop.")
     try:
         server.serve_forever()
