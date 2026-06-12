@@ -5,3 +5,4 @@ __pycache__/
 optimized_prompts.txt
 system_prompt.txt
 goldens.json
+graphify-out/
