@@ -1,0 +1,28 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment & secrets
+.env
+.deepeval/
+
+# Generated outputs
+graphify-out/
+optimized_prompts.txt
+system_prompt.txt
+
+# Test & dev artifacts
+.pytest_cache/
+goldens.json
+
+# Git & CI
+.git/
+.github/
+
+# Docs & misc
+docs/
+*.md
+LICENSE
+logo.png
